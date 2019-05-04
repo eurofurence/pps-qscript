@@ -13,6 +13,7 @@ $: << '.'
 
 ROLES_CONFIG_FILE = 'roles.ini'.freeze
 SUBS_CONFIG_FILE = 'subs.ini'.freeze
+PUPPET_POOL_FILE = 'puppet_pool.csv'.freeze
 MATCH_NAME = '[A-Za-z0-9_-]+'.freeze
 MATCH_SNAME = '[A-Za-z0-9_ \'-]+'.freeze
 
@@ -676,6 +677,33 @@ class Report
     builds
   end
 
+  def people_assignments( timeframe, listname, person )
+    found = []
+    timeframe.timeframes_lines[ listname ][ person ].each do |line|
+      # p line
+      case line
+      when / Pers[+] /
+        task = line.split( ' ', 5 )[ 3 ]
+        next if found.include?( task )
+
+        found.push( task )
+        next
+      when / Stage /
+        line.scan( /<.p>(#{MATCH_SNAME})<\/.p>/i ) do |m|
+          task = m[ 0 ]
+          next if found.include?( task )
+
+          found.push( task )
+        end
+        next unless found.empty?
+
+        text = line.split( ' ', 5 )[ 4 ]
+        found.push( text )
+      end
+    end
+    found
+  end
+
   def list_people_assignments( timeframe )
     listname = 'people'
     assignments = {}
@@ -688,31 +716,11 @@ class Report
         next unless timeframe.timeframes_lines.key?( listname )
         next unless timeframe.timeframes_lines[ listname ].key?( person )
 
-        found = []
-        timeframe.timeframes_lines[ listname ][ person ].each do |line|
-          # p line
-          case line
-          when / Pers[+] /
-            task = line.split( ' ', 5 )[ 3 ]
-            next if found.include?( task )
-
-            found.push( task )
-            next
-          when / Stage /
-            line.scan( /<.p>(#{MATCH_SNAME})<\/.p>/i ) do |m|
-              task = m[ 0 ]
-              next if found.include?( task )
-
-              found.push( task )
-            end
-            next unless found.empty?
-            text = line.split( ' ', 5 )[ 4 ]
-            found.push( text )
-          end
-        end
+        found = people_assignments( timeframe, listname, person )
         found.each do |text|
           if assignments.key?( text )
             next if assignments[ text ].include?( person )
+
             # puts "Fehler Assignments: #{assignments[ text ]}, #{person}"
             assignments[ text ] ||= [ person ]
           else
@@ -903,6 +911,47 @@ class Report
     table
   end
 
+  def puppet_image( puppet )
+    return "<img #{$puppet_pool[ puppet ]}/>".gsub( '&', '&amp;' ) \
+      if $puppet_pool.key?( puppet )
+  end
+
+  def puppet_clothes_list( arr, scene )
+    return nil if arr.nil?
+
+    result = []
+    arr.each do |entry|
+      next unless entry =~ /^#{scene}:/
+      next if entry =~ /Clth-/
+
+      name = entry.sub( /^.*Clth. *#{MATCH_NAME} */, '' )
+      result.push( name )
+    end
+    result.uniq!
+    # pp [ 'puppet_clothes_list', scene, arr, result ]
+    result.join( '<br>' )
+  end
+
+  def puppet_clothes( timeframe )
+    table, puppets = columns_and_rows( timeframe, 'Puppet' )
+    table[ 0 ].insert( 1, 'Image' )
+    puppets.each do |puppet|
+      row = [ puppet, puppet_image( puppet ) ]
+      timeframe.timeframes.each_pair do |scene, hash|
+        next unless hash.key?( 'puppet_plays' )
+
+        unless hash[ 'puppet_plays' ].key?( puppet )
+          row.push( nil )
+          next
+        end
+        row.push( puppet_clothes_list( hash[ 'puppet_plays' ][ puppet ][ 4 ], scene ) )
+      end
+      table.push( row )
+    end
+    puts_table( table )
+    table
+  end
+
   def save( filename )
     file_put_contents( filename, @head + @script + @report )
   end
@@ -979,6 +1028,7 @@ class Parser
   def parse_single_backdrop( line )
     position, text = line.split( ': ', 2 )
     return if text.nil?
+
     @backdrops.push( @store.add_backdrop( position, text ) )
     return unless position == 'Right'
 
@@ -1028,8 +1078,8 @@ class Parser
     return if /###/ =~ line
 
     # "Character (Player, Hands |Puppet |Costume)"
-    #role, text = line.split( / *\(/, 2 )
-    role, text = line.split( / *\(\(*/, 2 )
+    role, text = line.split( / *\(/, 2 )
+    # role, text = line.split( / *\(\(*/, 2 )
     list2 =
       if text.nil?
         [
@@ -1041,14 +1091,11 @@ class Parser
         ]
       else
         text.strip!
-p text
         case text
         when /[)]$/
           text = text[ 0 .. -2 ]
         when /^[(]/
-p text
           text = text[ 1 .. -1 ]
-p text
         end
         players, puppet, clothing = text.split( '|', 3 ).map( &:strip )
         player, hand, voice = players.split( ', ' ).map( &:strip )
@@ -1094,7 +1141,7 @@ p text
     end
   end
 
-  def parse_section( section, line )
+  def parse_section_data( section, line )
     @qscript.puts line.sub( /^    /, "\t//" )
     line.sub!( /^ *[*] /, '' )
     line = replace_text( line )
@@ -1132,7 +1179,6 @@ p text
   end
 
   def parse_effects( line )
-    list = line.split( ', ' )
     # Stagehands?
     [ 'tec', 'sfx' ].each do |key|
       parse_single_prop( line, key )
@@ -1365,45 +1411,66 @@ p text
     @report.puts2_key( 'Note', line )
   end
 
-  def merge_role( role, list )
-    return list unless @store.collection[ 'person' ].key?( role )
+  def change_role_player( role, old_player, player )
+    return if old_player == player
 
-    player, hand, voice, puppet, clothing = list
-    @store.change_clothing( role, puppet, clothing )
-    list2 = [
+    add_note( "TODO: Player changed #{role}" )
+    STDERR.puts "TODO: Player changed #{role}"
+  end
+
+  def change_role_hand( role, old_hand, hand )
+    return if old_hand == hand
+
+    add_note( "TODO: Hands changed #{role}" )
+    STDERR.puts "TODO: Hands changed #{role}"
+  end
+
+  def change_role_voice( role, old_voice, voice )
+    return if old_voice == voice
+
+    add_note( "TODO: Voice changed #{role}" )
+    STDERR.puts "TODO: Voice changed #{role}"
+  end
+
+  def change_role_puppet( role, old_puppet, puppet )
+    return if old_puppet == puppet
+
+    add_note( "TODO: Puppet changed #{role}" )
+    STDERR.puts "TODO: Puppet changed #{role}"
+  end
+
+  def old_role( role, list )
+    old_list = [
       @store.collection[ 'person' ][ role ][ 'player' ],
       @store.collection[ 'person' ][ role ][ 'hands' ],
       @store.collection[ 'person' ][ role ][ 'voice' ],
       @store.collection[ 'person_puppets' ][ role ],
-      clothing
-      # @store.collection[ 'person_clothes' ][ role ]
+      @store.collection[ 'person_clothes' ][ role ]
     ]
-    player = list2[ 0 ] if @store.ignore.key?( player )
+    player, hand, voice, puppet, clothing = list
+    player = old_list[ 0 ] if @store.ignore.key?( player )
     voice = player if voice.nil?
-    hand = list2[ 1 ] if @store.ignore.key?( hand )
-    voice = list2[ 2 ] if @store.ignore.key?( voice )
-    puppet = list2[ 3 ] if @store.ignore.key?( puppet )
-    clothing = list2[ 4 ] if @store.ignore.key?( clothing )
-    return nil if list2[ 0 .. 3 ] == [ player, hand, voice, puppet ]
+    hand = old_list[ 1 ] if @store.ignore.key?( hand )
+    voice = old_list[ 2 ] if @store.ignore.key?( voice )
+    puppet = old_list[ 3 ] if @store.ignore.key?( puppet )
+    clothing = old_list[ 4 ] if @store.ignore.key?( clothing )
+    [ old_list, [ player, hand, voice, puppet, clothing ] ]
+  end
 
-    if list2[ 0 ] != player
-      add_note( "TODO: Player changed #{role}" )
-      STDERR.puts "TODO: Player changed #{role}"
-    end
-    if list2[ 1 ] != hand
-      add_note( "TODO: Hands changed #{role}" )
-      STDERR.puts "TODO: Hands changed #{role}"
-    end
-    if list2[ 2 ] != voice
-      add_note( "TODO: Voice changed #{role}" )
-      STDERR.puts "TODO: Voice changed #{role}"
-    end
-    if list2[ 4 ] != puppet
-      add_note( "TODO: Puppet changed #{role}" )
-      STDERR.puts "TODO: Puppet changed #{role}"
-    end
-    p list2
-    p [ player, hand, voice, puppet, clothing ]
+  def merge_role( role, list )
+    return list unless @store.collection[ 'person' ].key?( role )
+
+    old_list, new_list = old_role( role, list )
+    # pp [ 'merge_role', old_list, new_list ]
+    @store.change_clothing( role, new_list[ 3 ], new_list[ 4 ] )
+    return nil if old_list[ 0 .. 3 ] == new_list[ 0 .. 3 ]
+
+    change_role_player( role, old_list[ 0 ], new_list[ 0 ] )
+    change_role_hand( role, old_list[ 1 ], new_list[ 1 ] )
+    change_role_voice( role, old_list[ 2 ], new_list[ 2 ] )
+    change_role_puppet( role, old_list[ 3 ], new_list[ 3 ] )
+    p old_list
+    p list
     # assume nothing changed
     nil
   end
@@ -1489,7 +1556,6 @@ p text
   end
 
   def parse_role_name( text )
-    name = nil
     rest = text.gsub( / *\[[^\]]*\]/, '' )
     list = []
     while /^#{MATCH_NAME}( and |, *)/ =~ rest
@@ -1563,6 +1629,14 @@ p text
     end
   end
 
+  def print_spoken_mutiple( line )
+    list, text = parse_role_name( line )
+    # p [ list, text ]
+    list.each do |sname|
+      print_spoken_roles( sname, nil, text )
+    end
+  end
+
   def print_title_note( line )
     @qscript.puts_key( 'note', line )
     @qscript.puts ''
@@ -1610,46 +1684,52 @@ p text
     STDERR.puts line
   end
 
+  def parse_section( line )
+    case line
+    when /^<html>/, /^\[\[/
+      return true # ignore navigation
+    when /^==== / # title note
+      print_title_note( line )
+      return true
+    when /^      [*] / # head data
+      parse_section_data( @section, line )
+      return true
+    when /^    [*] / # head comment
+      @section = line.slice( /[A-Za-z][A-Za-z0-9_ -]*[:]/ )[ 0 .. -2 ]
+      parse_head( @section, line )
+      return true
+    when '== INTRO =='
+      @section = 'INTRO'
+      return true
+    when '== DIALOGUE =='
+      @section = nil
+      return true
+    when '----'
+      @section = nil
+      return true
+    end
+    false
+  end
+
   def parse_lines( filename, lines )
     @section = nil
     parse_title( filename )
     lines.each do |line|
       line.sub!( /\\\\$/, '' ) # remove DokuWiki linebreak
       line.rstrip!
-      case line
-      when /^<html>/, /^\[\[/
-        next # ignore navigation
-      when /^==== / # title note
-        print_title_note( line )
-        next
-      when /^      [*] / # head data
-        parse_section( @section, line )
-        next
-      when /^    [*] / # head comment
-        @section = line.slice( /[A-Za-z][A-Za-z0-9_ -]*[:]/ )[ 0 .. -2 ]
-        parse_head( @section, line )
-        next
-      when '== INTRO =='
-        @section = 'INTRO'
-        next
-      when '== DIALOGUE =='
-        @section = nil
-        next
-      when '----'
-        @section = nil
-        next
-      end
+      next if parse_section( line )
+
       line = replace_text( line )
       case line
       when ''
         next
       when /Backdrop_L/
         collect_backdrop( line )
+        next
       when /^%HND% Curtain - /
-	collect_prop( @setting, nil )
+        collect_prop( @setting, nil )
         @setting = ''
         # pp @scene_props
-        pp @scene_props
         curtain( line.sub( /^%HND% Curtain - */, '' ) )
         next
       when /^%HND% /
@@ -1674,14 +1754,16 @@ p text
         name, text = line.split( ': ', 2 )
         print_spoken_roles( name, nil, text )
         next
+      when /^#{MATCH_NAME}, #{MATCH_NAME}[:] /
+        print_spoken_mutiple( line )
       end
       next if print_simple_line( line )
       next if print_role_line( line )
 
-#      if @section == 'INTRO'
-#        add_note( "INTRO: #{line}" )
-#        next
-#      end
+      # if @section == 'INTRO'
+      #   add_note( "INTRO: #{line}" )
+      #   next
+      # end
       print_unknown_line( line )
     end
     close_scene
@@ -1708,6 +1790,7 @@ TIMEFRAME_FIELDS = [
 
 $roles_config = RolesConfig.new( ROLES_CONFIG_FILE )
 $subs = read_subs( SUBS_CONFIG_FILE )
+$puppet_pool = read_subs( PUPPET_POOL_FILE )
 qscript = QScript.new
 report = Report.new
 timeframe = Timeframe.new( TIMEFRAME_FIELDS )
@@ -1728,8 +1811,11 @@ parser.report.catalog_item( parser.store.collection, parser.store.timeframe )
 parser.report.puts_tables( parser.store.timeframe )
 
 table = parser.report.puppet_role( parser.store.timeframe )
+table2 = parser.report.puppet_clothes( parser.store.timeframe )
 builds = parser.report.list_builds( parser.store.timeframe )
 html = parser.report.html_table( table )
+clothes = parser.report.html_table( table2 )
+html << clothes
 builds.each_pair do |key, h|
   html << parser.report.html_list( key, h, '; ' )
   parser.report.puts_build_list( key, h, '; ' )
@@ -1738,6 +1824,8 @@ assignments = parser.report.list_people_assignments( parser.store.timeframe )
 html << parser.report.html_list( 'Assignments', assignments )
 parser.report.puts_build_list( 'Assignments', assignments )
 
+style = File.read( 'style.inc' )
+file_put_contents( 'clothes.html', style + clothes )
 file_put_contents( 'html.html', html )
 
 parser.report.save( 'test.txt' )
