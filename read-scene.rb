@@ -455,6 +455,8 @@ class Store
     add( 'person', name, {} )
     @timeframe.add( 'Role', name )
     player, hands, voice, puppet, clothing = list
+    hands = nil if hands == '---'
+    hands = nil if hands == 'None'
     uplayer = add_person( name, 'player', player, 'Actor' )
     voice = voice.nil? ? uplayer : voice
     hands = hands.nil? ? uplayer : hands
@@ -721,7 +723,7 @@ class Report
           if assignments.key?( text )
             next if assignments[ text ].include?( person )
 
-            # puts "Fehler Assignments: #{assignments[ text ]}, #{person}"
+            # puts "Error Assignments: #{assignments[ text ]}, #{person}"
             assignments[ text ] ||= [ person ]
           else
             assignments[ text ] = [ person ]
@@ -804,6 +806,20 @@ class Report
       end
     end
     puts text
+  end
+
+  def rows( timeframe, key )
+    rows = []
+    timeframe.timeframes.each_pair do |scene, hash|
+      next unless hash.key?( key )
+
+      hash[ key ].each do |puppet|
+        next if rows.include?( puppet )
+
+        rows.push( puppet )
+      end
+    end
+    rows
   end
 
   def columns_and_rows( timeframe, key )
@@ -944,6 +960,9 @@ class Report
           row.push( nil )
           next
         end
+        role = hash[ 'puppet_plays' ][ puppet ][ 0 ]
+        pp hash[ 'puppet_plays' ][ puppet ][ 0 ]
+	row[ 0 ] = "#{role} (#{puppet})"
         row.push( puppet_clothes_list( hash[ 'puppet_plays' ][ puppet ][ 4 ], scene ) )
       end
       table.push( row )
@@ -1075,9 +1094,9 @@ class Parser
   end
 
   def parse_single_puppet( line )
-    return if /###/ =~ line
+    return if /^ *###/ =~ line
 
-    # "Character (Player, Hands |Puppet |Costume)"
+    # "Character (Player, Hands |Puppet |Costume) comment"
     role, text = line.split( / *\(/, 2 )
     # role, text = line.split( / *\(\(*/, 2 )
     list2 =
@@ -1091,6 +1110,7 @@ class Parser
         ]
       else
         text.strip!
+        text.sub!( /[)] .*$/, '' )
         case text
         when /[)]$/
           text = text[ 0 .. -2 ]
@@ -1099,8 +1119,10 @@ class Parser
         end
         players, puppet, clothing = text.split( '|', 3 ).map( &:strip )
         player, hand, voice = players.split( ', ' ).map( &:strip )
+	voice.sub!( /^Voice: */, '' ) unless voice.nil?
         [ player, hand, voice, puppet, clothing ]
       end
+
     list = merge_role( role, list2 )
     if list.nil?
       @store.add_role( role, list2 )
@@ -1161,7 +1183,7 @@ class Parser
   end
 
   def parse_puppets( line )
-    # "Character (Player, Hands |Puppet |Costume)"
+    # "Character (Player, Hands, Voice |Puppet |Costume)"
     line.split( '), ' ).each do |entry|
       parse_single_puppet( entry )
     end
@@ -1411,32 +1433,33 @@ class Parser
     @report.puts2_key( 'Note', line )
   end
 
+  def add_error_note( line )
+    add_note( line )
+    STDERR.puts line
+  end
+
   def change_role_player( role, old_player, player )
     return if old_player == player
 
-    add_note( "TODO: Player changed #{role}" )
-    STDERR.puts "TODO: Player changed #{role}"
+    add_error_note( "TODO: Player changed #{role}: #{old_player} -> #{player}" )
   end
 
   def change_role_hand( role, old_hand, hand )
     return if old_hand == hand
 
-    add_note( "TODO: Hands changed #{role}" )
-    STDERR.puts "TODO: Hands changed #{role}"
+    add_error_note( "TODO: Hands changed #{role}: #{old_hand} -> #{hand}" )
   end
 
   def change_role_voice( role, old_voice, voice )
     return if old_voice == voice
 
-    add_note( "TODO: Voice changed #{role}" )
-    STDERR.puts "TODO: Voice changed #{role}"
+    add_error_note( "TODO: Voice changed #{role}: #{old_voice} -> #{voice}" )
   end
 
   def change_role_puppet( role, old_puppet, puppet )
     return if old_puppet == puppet
 
-    add_note( "TODO: Puppet changed #{role}" )
-    STDERR.puts "TODO: Puppet changed #{role}"
+    add_error_note( "TODO: Puppet changed #{role}: #{old_puppet} -> #{puppet}" )
   end
 
   def old_role( role, list )
@@ -1481,8 +1504,7 @@ class Parser
 
     p [ 'unknown_person', name ]
     if @section != 'Puppets:'
-      add_note( "TODO: unknown Role: '#{name}'" )
-      STDERR.puts "TODO: unknown Role: '#{name}'"
+      add_error_note( "TODO: unknown Role: '#{name}'" )
       STDERR.puts( @store.collection[ 'person' ][ name ] )
     end
     if @store.collection[ 'person' ].key?( name )
@@ -1567,7 +1589,7 @@ class Parser
     when /^#{MATCH_NAME}[:]*$/
       list.push( name.sub( ':', '' ) )
     else
-      STDERR.puts "Fehler in Role: #{name}, #{text}"
+      add_error_note( "TODO: Error in Role: #{name}, #{text}" )
     end
     # p [ 'parse_role_name', list, text ]
     [ list, text ]
@@ -1680,13 +1702,12 @@ class Parser
          /:events:pps:script:/, '== DIALOGUE =='
       return
     end
-    add_note( "TODO: unknown line '#{line}'" )
-    STDERR.puts line
+    add_error_note( "TODO: unknown line '#{line}'" )
   end
 
   def parse_section( line )
     case line
-    when /^<html>/, /^\[\[/
+    when /^<html>/, /^\[\[/, ''
       return true # ignore navigation
     when /^==== / # title note
       print_title_note( line )
@@ -1694,7 +1715,7 @@ class Parser
     when /^      [*] / # head data
       parse_section_data( @section, line )
       return true
-    when /^    [*] / # head comment
+    when /^    [*] [A-Za-z][A-Za-z0-9_ -]*[:]/ # head comment
       @section = line.slice( /[A-Za-z][A-Za-z0-9_ -]*[:]/ )[ 0 .. -2 ]
       parse_head( @section, line )
       return true
@@ -1704,9 +1725,15 @@ class Parser
     when '== DIALOGUE =='
       @section = nil
       return true
-    when '----'
+    when '----', '', '^Part^Time|'
       @section = nil
       return true
+    else
+      return false if @section.nil?
+      return false if @section == 'INTRO'
+
+      p [ 'parse_section', @section, line ]
+      add_note( "TODO: unknown header in #{@section}: '#{line}'" )
     end
     false
   end
@@ -1754,8 +1781,9 @@ class Parser
         name, text = line.split( ': ', 2 )
         print_spoken_roles( name, nil, text )
         next
-      when /^#{MATCH_NAME}, #{MATCH_NAME}[:] /
+      when /^#{MATCH_NAME}(, #{MATCH_NAME})*[:] /
         print_spoken_mutiple( line )
+        next
       end
       next if print_simple_line( line )
       next if print_role_line( line )
