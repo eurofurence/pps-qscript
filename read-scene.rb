@@ -14,6 +14,7 @@ $: << '.'
 ROLES_CONFIG_FILE = 'roles.ini'.freeze
 SUBS_CONFIG_FILE = 'subs.ini'.freeze
 PUPPET_POOL_FILE = 'puppet_pool.csv'.freeze
+HTML_HEADER_FILE = 'header.html'.freeze
 MATCH_NAME = '[A-Za-z0-9_-]+'.freeze
 MATCH_SNAME = '[A-Za-z0-9_ \'-]+'.freeze
 
@@ -90,19 +91,24 @@ end
 
 # === Class Functions
 #   QScript.new
+#   QScript.lines
 #   QScript.puts( line )
 #   QScript.puts_key( key, name, text = nil )
 #   QScript.puts_key_token( key, token, name, text = nil )
 #   QScript.puts_list( key, list )
 #   QScript.save( filename )
 class QScript
+  attr_accessor :lines
+
   def initialize
-    @qscript = ''
+    @script = ''
+    @lines = 0
   end
 
   def puts( line )
-    @qscript << line
-    @qscript << "\n"
+    @script << line
+    @script << "\n"
+    @lines += 1
   end
 
   def puts_key( key, name, text = nil )
@@ -128,7 +134,7 @@ class QScript
   end
 
   def save( filename )
-    file_put_contents( filename, @qscript )
+    file_put_contents( filename, @script )
   end
 end
 
@@ -140,6 +146,7 @@ end
 #   Timeframe.add_once( key, val )
 #   Timeframe.fields
 #   Timeframe.timeframes
+#   Timeframe.this_timeframe
 #   Timeframe.add_hash( hashkey, key, val )
 #   Timeframe.add_list_text( key, reportkey, name, text )
 #   Timeframe.add_list( key, reportkey, token, name )
@@ -160,6 +167,10 @@ class Timeframe
   def scene( title )
     @timeframe = title
     @timeframes[ @timeframe ] = {}
+  end
+
+  def this_timeframe
+    @timeframes[ @timeframe ]
   end
 
   def seen?( key, name )
@@ -321,6 +332,7 @@ class Store
     'person_old_clothes',
     'person_props',
     'person_puppets',
+    'owned_props',
     'props',
     'props_owner',
     'puppets',
@@ -431,6 +443,8 @@ class Store
 
   def change_clothing( name, puppet, clothing )
     old = @collection[ 'person_clothes' ][ name ]
+    return nil if old.nil?
+
     if clothing == old
       return nil if clothing == 'None'
 
@@ -477,7 +491,7 @@ class Store
 end
 
 # === Class Functions
-#   Report.new
+#   Report.new( qscript )
 #   Report.puts( line )
 #   Report.puts2( line )
 #   Report.puts2_key( key, name, text = nil )
@@ -496,6 +510,7 @@ end
 #   Report.columns_and_rows( timeframe, key )
 #   Report.puts_timeframe_table( timeframe, title, key )
 #   Report.save( filename )
+#   Report.save_html( filename )
 class Report
   REPORT_CATALOG = {
     'Front props' => 'frontprops',
@@ -529,11 +544,19 @@ class Report
     'Hand prop'
   ].freeze
 
-  def initialize
+  def initialize( qscript )
+    @qscript = qscript
     @head = "   ^  Table of contents\n"
+    @html_head = File.read( HTML_HEADER_FILE )
+    @html_head << "<body><a href=\"#top\">^&nbsp;</a> <u>Table of contents</u>\n"
+    @html_head << '<ul>'
     @script = "\n   Script\n"
+    @html_script = "</ul><br/>\n<u id=\"script\">Script</u>\n"
+    @html_script << '<ul>'
     @report = "\n"
+    @html_report = "</ul><br/>\n"
     @head << text_item( 'Script' )
+    @html_head << html_li_item( 'Script' )
   end
 
   def puts( line )
@@ -546,9 +569,20 @@ class Report
     @report << "\n"
   end
 
+  def puts_html( line )
+    @html_report << line
+    @html_report << "\n"
+  end
+
+  def html_p( key, text )
+    loc = "loc#{@qscript.lines}_2"
+    puts_html( "<p id=\"#{loc}\">&nbsp;#{key} #{text}</p>" )
+  end
+
   def puts2_key( key, name, text = nil )
     if text.nil?
       puts2 "    #{key} #{name}"
+      html_p( key, name )
     else
       puts2 "    #{key} #{name} #{text}"
     end
@@ -562,14 +596,32 @@ class Report
     "     * #{item}\n"
   end
 
+  def href( item )
+    citem = item.gsub( /^[a-z]|[\s._+-]+[a-z]/, &:upcase )
+    item[ 0 .. 0 ].downcase + citem[ 1 .. -1 ].delete( ' "-' )
+  end
+
+  def html_li_item( item )
+    href = href( item )
+    "<li><a href=\"##{href}\">#{item}</a></li>\n"
+  end
+
+  def html_u_item( item )
+    href = href( item )
+    "<u id=\"#{href}\">#{item}</u><br/>\n"
+  end
+
   def add_head( item )
     @head << text_item( item )
+    @html_head << html_li_item( item )
     puts "   #{item}"
   end
 
   def add_script( item )
     @script << text_item( item )
+    @html_script << html_li_item( item )
     puts2 "   #{item}"
+    @html_report << html_u_item( item )
   end
 
   def list_quoted( list, prefix )
@@ -810,7 +862,7 @@ class Report
 
   def rows( timeframe, key )
     rows = []
-    timeframe.timeframes.each_pair do |scene, hash|
+    timeframe.timeframes.each_pair do |_scene, hash|
       next unless hash.key?( key )
 
       hash[ key ].each do |puppet|
@@ -962,7 +1014,7 @@ class Report
         end
         role = hash[ 'puppet_plays' ][ puppet ][ 0 ]
         pp hash[ 'puppet_plays' ][ puppet ][ 0 ]
-	row[ 0 ] = "#{role} (#{puppet})"
+        row[ 0 ] = "#{role} (#{puppet})"
         row.push( puppet_clothes_list( hash[ 'puppet_plays' ][ puppet ][ 4 ], scene ) )
       end
       table.push( row )
@@ -973,6 +1025,10 @@ class Report
 
   def save( filename )
     file_put_contents( filename, @head + @script + @report )
+  end
+
+  def save_html( filename )
+    file_put_contents( filename, @html_head + @html_script + @html_report )
   end
 end
 
@@ -1009,6 +1065,7 @@ class Parser
     @report = report
     @backdrops = []
     @scene_props = {}
+    @scene_props_hands = {}
     @setting = ''
   end
 
@@ -1072,6 +1129,31 @@ class Parser
     @report.puts2_key( 'Clth+', name, clothing )
   end
 
+  def drop_person( name )
+    @qscript.puts ''
+    @store.collection[ 'person' ][ name ].each_key do |key|
+      @qscript.puts "\tperson- \"#{name}\".#{key}"
+      @report.puts2_key( 'Pers-', "#{name}.#{key}" )
+    end
+
+    val = @store.collection[ 'person_clothes' ][ name ]
+    @qscript.puts_key( 'clothing-', name, val ) unless val.nil?
+
+    @store.collection[ 'person_old_clothes' ][ name ] = nil
+    if @store.collection[ 'owned_props' ].key?( name )
+      @store.collection[ 'owned_props' ][ name ].each do |owner|
+        next if owner.nil?
+
+        @qscript.puts_key( 'handProp-', name, owner )
+        @store.collection[ 'props_owner' ][ owner ] = nil
+      end
+      @store.collection[ 'owned_props' ][ name ] = []
+    end
+
+    @qscript.puts_key( 'puppet-', name )
+    @report.puts2_key( 'Pupp-', name )
+  end
+
   def list_one_person2( name )
     @qscript.puts ''
     # @store.collection[ 'person' ][ name ].each_pair do |key, val|
@@ -1119,16 +1201,16 @@ class Parser
         end
         players, puppet, clothing = text.split( '|', 3 ).map( &:strip )
         player, hand, voice = players.split( ', ' ).map( &:strip )
-	voice.sub!( /^Voice: */, '' ) unless voice.nil?
+        voice.sub!( /^Voice: */, '' ) unless voice.nil?
         [ player, hand, voice, puppet, clothing ]
       end
 
     list = merge_role( role, list2 )
-    if list.nil?
-      @store.add_role( role, list2 )
-      list_one_person2( role )
-      return
-    end
+    # if list.nil?
+    #   @store.add_role( role, list2 )
+    #   list_one_person2( role )
+    #   return
+    # end
     @store.add_role( role, list )
     list_one_person( role )
   end
@@ -1159,6 +1241,13 @@ class Parser
 
       m.each do |prop|
         @scene_props[ prop ] = 0
+        handtext = line.scan( /[(]([^)]*)[)]/ ) 
+        next if handtext.empty?
+
+        p [ 'parse_single_prop', handtext ]
+        hands = handtext[ 0 ][ 0 ].split( /, */ )
+        p [ 'parse_single_prop', hands ]
+        @scene_props_hands[ prop ] = hands
       end
     end
   end
@@ -1224,7 +1313,7 @@ class Parser
     when 'Costumes'
       parse_costumes( line )
     when 'Setting'
-      @setting << line
+      @setting << replace_text( line )
     when 'Stage setup', 'On 2nd rail', 'On playrail'
       # ignore
     when 'Props', 'Hand props', 'PreRec', 'Special effects'
@@ -1252,6 +1341,9 @@ class Parser
     @store.add( ownerkey, prop, owner )
     @store.timeframe.add_once( timeframekey, prop )
     @store.timeframe.add_list( storekey, reportkey, '+', prop, owner )
+    @store.collection[ 'owned_props' ][ owner ] = [] \
+      unless @store.collection[ 'owned_props' ].key?( owner )
+    @store.collection[ 'owned_props' ][ owner ].push( prop )
   end
 
   def remove_owned_prop( prop, owner, names )
@@ -1263,6 +1355,7 @@ class Parser
     @store.count( storekey, prop )
     @store.add( ownerkey, prop, nil )
     @store.timeframe.add_list( storekey, reportkey, '-', prop, owner )
+    @store.collection[ 'owned_props' ][ owner ].delete( prop )
   end
 
   def count_single_prop( prop, names )
@@ -1324,7 +1417,7 @@ class Parser
     add_scene_prop( prop )
     storekey, qscriptkey, reportkey, timeframekey = names
     ownerkey = "#{storekey}_owner"
-    p [ 'collect_just_prop', ownerkey ]
+    p [ 'collect_just_prop', ownerkey, @scene_props_hands ]
     if @store.collection.key?( ownerkey )
       old = @store.collection[ ownerkey ][ prop ]
       unless old.nil?
@@ -1344,18 +1437,24 @@ class Parser
   end
 
   def collect_simple_props( line, suffix, tag, names )
+    props = []
     suffix_props( line, suffix ).each do |prop|
+      props.push( prop )
       collect_single_prop( prop, names )
     end
 
     tagged_props( line, tag ).each do |prop|
+      props.push( prop )
       collect_single_prop( prop, names )
     end
+    props
   end
 
   def collect_handprop( line, owner )
+    props = []
     # p ['collect_handprop', line, owner ]
     suffix_props( line, 'hp' ).each do |prop|
+      props.push( prop )
       unless owner.nil?
         collect_owned_prop( prop, owner, HANDPROP_NAMES )
         next
@@ -1363,8 +1462,9 @@ class Parser
       collect_just_prop( prop, JUSTPROP_NAMES )
     end
 
-    [ 'hp', 'pp', 'sfx' ].each do |key|
+    [ 'hp', 'pp', 'sfx', 'tec' ].each do |key|
       tagged_props( line, key ).each do |prop|
+        props.push( prop )
         unless owner.nil?
           collect_owned_prop( prop, owner, HANDPROP_NAMES )
           next
@@ -1372,6 +1472,7 @@ class Parser
         collect_just_prop( prop, JUSTPROP_NAMES )
       end
     end
+    props
   end
 
   def collect_backdrop( line )
@@ -1387,11 +1488,12 @@ class Parser
   end
 
   def collect_prop( line, name )
-    return if line.nil?
+    return [] if line.nil?
 
-    collect_handprop( line, name )
-    collect_simple_props( line, 'pr', 'fp', FRONTPROP_NAMES )
-    collect_simple_props( line, '2nd', 'sp', SECONDPROP_NAMES )
+    props = collect_handprop( line, name )
+    props.concat( collect_simple_props( line, 'pr', 'fp', FRONTPROP_NAMES ) )
+    props.concat( collect_simple_props( line, '2nd', 'sp', SECONDPROP_NAMES ) )
+    props
   end
 
   def new_stagehand
@@ -1409,6 +1511,7 @@ class Parser
   end
 
   def print_simple_line( line )
+    collect_prop( line, nil )
     SIMPLE_MAP.each_pair do |key, val|
       qscript_key, result_key = val
       case line
@@ -1429,8 +1532,8 @@ class Parser
 
   def add_note( line )
     @qscript.puts_key( 'note', line )
-    @qscript.puts ''
     @report.puts2_key( 'Note', line )
+    @qscript.puts ''
   end
 
   def add_error_note( line )
@@ -1439,24 +1542,32 @@ class Parser
   end
 
   def change_role_player( role, old_player, player )
+    return if old_player.nil?
+    return if old_player == ''
     return if old_player == player
 
     add_error_note( "TODO: Player changed #{role}: #{old_player} -> #{player}" )
   end
 
   def change_role_hand( role, old_hand, hand )
+    return if old_hand.nil?
+    return if old_hand == ''
     return if old_hand == hand
 
     add_error_note( "TODO: Hands changed #{role}: #{old_hand} -> #{hand}" )
   end
 
   def change_role_voice( role, old_voice, voice )
+    return if old_voice.nil?
+    return if old_voice == ''
     return if old_voice == voice
 
     add_error_note( "TODO: Voice changed #{role}: #{old_voice} -> #{voice}" )
   end
 
   def change_role_puppet( role, old_puppet, puppet )
+    return if old_puppet.nil?
+    return if old_puppet == ''
     return if old_puppet == puppet
 
     add_error_note( "TODO: Puppet changed #{role}: #{old_puppet} -> #{puppet}" )
@@ -1486,7 +1597,8 @@ class Parser
     old_list, new_list = old_role( role, list )
     # pp [ 'merge_role', old_list, new_list ]
     @store.change_clothing( role, new_list[ 3 ], new_list[ 4 ] )
-    return nil if old_list[ 0 .. 3 ] == new_list[ 0 .. 3 ]
+    # return nil if old_list[ 0 .. 3 ] == new_list[ 0 .. 3 ]
+    return list if old_list[ 0 .. 3 ] == new_list[ 0 .. 3 ]
 
     change_role_player( role, old_list[ 0 ], new_list[ 0 ] )
     change_role_hand( role, old_list[ 1 ], new_list[ 1 ] )
@@ -1495,7 +1607,8 @@ class Parser
     p old_list
     p list
     # assume nothing changed
-    nil
+    # nil
+    list
   end
 
   def unknown_person( name )
@@ -1526,6 +1639,13 @@ class Parser
     end
   end
 
+  def parse_position( name, text )
+    case text
+    when / leaves towards /, / leaves to /
+      # drop_person( name )
+    end
+  end
+
   def print_role( name, qscript_key, result_key, text )
     unknown_person( name )
     collect_prop( text, name )
@@ -1539,6 +1659,7 @@ class Parser
       unless hands == player
     puppet = @store.collection[ 'person_puppets' ][ name ]
     @store.timeframe.add_list_text( 'puppets', result_key, puppet, name + ' ' + text )
+    parse_position( name, text )
   end
 
   def print_roles( name, qscript_key, result_key, text )
@@ -1674,15 +1795,9 @@ class Parser
   end
 
   def close_scene
-    # @store.timeframe.list( 'Role' ).each do |role|
-    #   @qscript.puts ''
-    #   @store.collection[ 'person' ][ role ].each_key do |key|
-    #     @qscript.puts "\tperson- \"#{role}\".#{key}"
-    #   end
-    #   val = @store.collection[ 'person_clothes' ][ role ]
-    #   @qscript.puts_key( 'clothing-', role, val )
-    #   @qscript.puts_key( 'puppet-', role )
-    # end
+    @store.timeframe.list( 'Role' ).each do |role|
+      drop_person( role )
+    end
     # pp @scene_props
     @scene_props.each_pair do |prop, count|
       next if count > 0
@@ -1693,6 +1808,7 @@ class Parser
     @qscript.puts ''
     @store.timeframe.sum_spoken( @store.collection )
     @scene_props = {}
+    @scene_props_hands = {}
     @setting = ''
   end
 
@@ -1707,7 +1823,7 @@ class Parser
 
   def parse_section( line )
     case line
-    when /^<html>/, /^\[\[/, ''
+    when /^<html>/, /^\[\[/
       return true # ignore navigation
     when /^==== / # title note
       print_title_note( line )
@@ -1728,6 +1844,8 @@ class Parser
     when '----', '', '^Part^Time|'
       @section = nil
       return true
+    when /^### /
+      return false # parse later
     else
       return false if @section.nil?
       return false if @section == 'INTRO'
@@ -1761,9 +1879,19 @@ class Parser
         next
       when /^%HND% /
         text = line.sub( /^%HND% /, '' )
-        stagehand = parse_stagehand( new_stagehand, text, 'stagehand', 'Stage' )
-        # collect_prop( text, stagehand )
-        collect_prop( text, nil )
+        props = collect_prop( text, nil )
+        props.each do |prop|
+          hands =
+            if @scene_props_hands.key?( prop )
+              @scene_props_hands[ prop ]
+            else
+              [ new_stagehand ]
+            end
+          p [ '%HND%', props, hands ]
+          hands.each do |hand|
+            parse_stagehand( hand, text, 'stagehand', 'Stage' )
+          end
+        end
         next
       when /^%FOG% /
         text = line.sub( /^%FOG% /, '' )
@@ -1820,7 +1948,7 @@ $roles_config = RolesConfig.new( ROLES_CONFIG_FILE )
 $subs = read_subs( SUBS_CONFIG_FILE )
 $puppet_pool = read_subs( PUPPET_POOL_FILE )
 qscript = QScript.new
-report = Report.new
+report = Report.new( qscript )
 timeframe = Timeframe.new( TIMEFRAME_FIELDS )
 store = Store.new( timeframe )
 parser = Parser.new( store, qscript, report )
@@ -1857,6 +1985,7 @@ file_put_contents( 'clothes.html', style + clothes )
 file_put_contents( 'html.html', html )
 
 parser.report.save( 'test.txt' )
+parser.report.save_html( 'test.html' )
 
 exit 0
 # eof
