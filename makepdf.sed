@@ -1,0 +1,9 @@
+s|src="/lib/exe/fetch.php[?]cache=[&]amp;media=.*:|src="media/|g
+s|/lib/exe/css.php[?]t=|media/|g
+s|/lib/images/smileys/|media/|g
+s|[&]amp;tseed=[0-9a-f]*|.css|g
+s|src="/lib/exe/js.php[^"]*||g
+s|src="/lib/exe/jquery.php[^"]*||g
+s|src="/lib/exe/fetch.php[^"]*||g
+s|src="/lib/exe/indexer.php[^"]*||g
+#s|DinoEx|<mark>DinoEx</mark>|g
