@@ -603,15 +603,15 @@ end
 #   Report.add_script( item )
 #   Report.list_title_quoted( list, prefix )
 #   Report.list_quoted( list, prefix )
-#   Report.list_unsorted( list, prefix = nil )
+#   Report.list_unsorted( list, type )
 #   Report.list( hash )
 #   Report.catalog( collection )
-#   Report.catalog_item( timeframe )
-#   Report.puts_timeframe( timeframe )
+#   Report.catalog_item
+#   Report.puts_timeframe
 #   Report.puts_table( table )
 #   Report.html_table( table )
-#   Report.columns_and_rows( timeframe, key )
-#   Report.puts_timeframe_table( timeframe, title, key )
+#   Report.columns_and_rows( key )
+#   Report.puts_timeframe_table( title, key )
 #   Report.save( filename )
 #   Report.save_html( filename )
 class Report
@@ -637,7 +637,9 @@ class Report
     'Roles' => 'Role',
     'People' => 'Actor',
     'Puppets' => 'Puppet',
-    'Puppet plays' => 'Puppet'
+    'Puppet plays' => 'Puppet',
+    'Puppet use' => 'Puppet',
+    'Puppet clothes' => 'Puppet'
   }.freeze
   REPORT_BUILDS = {
     'Backdrop panel' => 'Backdrop',
@@ -673,6 +675,8 @@ class Report
   ].freeze
 
   attr_accessor :timeframe_count
+  attr_accessor :puppet_plays
+  attr_accessor :puppet_clothes
 
   def initialize( store, qscript )
     @store = store
@@ -702,6 +706,10 @@ class Report
   def puts2( line )
     puts( line )
     @report << "\n"
+  end
+
+  def put_html( line )
+    @html_report << line
   end
 
   def puts_html( line )
@@ -777,6 +785,8 @@ class Report
 
   def html_object_name( name )
     if name.respond_to?( :key? )
+      return to_html( name[ :ref ], name[ :name ] ) if name.key?( :ref )
+
       obj = find_item_of_type( name[ :name ], name[ :type ] )
       return to_html( obj[ :ref ], name[ :name ] )
     end
@@ -931,24 +941,19 @@ class Report
     end
   end
 
-  def list_unsorted( list, type, prefix = nil )
+  def list_unsorted( list, type )
     return if list.nil?
 
     list.each do |prop, _count|
-      if prefix.nil?
-        puts "     * #{prop}"
-        ref =
-          if type.nil?
-            html_object_ref( prop )
-          else
-            html_object_ref( tname( type, prop ) )
-          end
-        @html_report << html_li_ref_item( ref, html_escape( prop ) ) + "\n"
-      else
-        puts "     * #{prefix} #{prop}"
-      end
+      puts "     * #{prop}"
+      ref =
+        if type.nil?
+          'tab' + capitalize( prop )
+        else
+          html_object_ref( tname( type, prop ) )
+        end
+      @html_report << html_li_ref_item( ref, html_escape( prop ) ) + "\n"
     end
-    return unless prefix.nil?
 
     puts '' unless list.empty?
   end
@@ -1046,14 +1051,14 @@ class Report
     nil
   end
 
-  def timeframe_list( timeframes_lines, type, name )
-    return unless timeframes_lines.key?( type )
-    return unless timeframes_lines[ type ].key?( name )
+  def timeframe_list( type, name )
+    return unless @store.timeframe.timeframes_lines.key?( type )
+    return unless @store.timeframe.timeframes_lines[ type ].key?( name )
 
     html_list = ''
     last_scene = nil
     count = 0
-    timeframes_lines[ type ][ name ].each do |h|
+    @store.timeframe.timeframes_lines[ type ][ name ].each do |h|
       if last_scene != h[ :scene ]
         html_list << "<br/>\n" unless last_scene.nil?
         text = timeframe_list_spoken( type, name, h[ :scene ] )
@@ -1088,11 +1093,11 @@ class Report
     title.sub( /s$/, '' )
   end
 
-  def person_count( timeframes_lines, listname, name )
-    return 0 unless timeframes_lines.key?( listname )
-    return 0 unless timeframes_lines[ listname ].key?( name )
+  def person_count( listname, name )
+    return 0 unless @store.timeframe.timeframes_lines.key?( listname )
+    return 0 unless @store.timeframe.timeframes_lines[ listname ].key?( name )
 
-    timeframes_lines[ listname ][ name ].size
+    @store.timeframe.timeframes_lines[ listname ][ name ].size
   end
 
   def person_spoken_count( type, name )
@@ -1103,43 +1108,38 @@ class Report
     @store.timeframe.timeframes_lines[ listname ][ name ].size
   end
 
-  def catalog_item( timeframe )
+  def catalog_item
     puts ''
     add_head( 'Catalog item details' )
     @html_report << '<ul>'
     Timeframe::TIMEFRAME_FIELDS.each_pair do |key, type|
       prefix = prefix_by_title( key )
       sorted = nat_sort_hash( @store.items[ type ] )
-      pp sorted
-      pp type
-      # exit 1
-      # @html_report << '<ul>'
       sorted.each do |name, _h|
         # p h
-        count = person_count( timeframe.timeframes_lines, type, name )
+        count = person_count( type, name )
         case type
         when 'Role', 'Actor', 'Puppet'
           count += person_spoken_count( type, name )
         end
-        # p [ key, type, name, count ]
-        # exit 2 if type == 'Backdrop'
         title = "#{prefix} #{quoted_noescape( name )} (#{count})"
         ref = html_object_ref( tname( type, name ) )
         puts "     * #{title}"
         @html_report << html_li_p_ref_item( ref, html_escape( title ) )
-        timeframe_list( timeframe.timeframes_lines, type, name )
+        timeframe_list( type, name )
         @html_report << "</li>\n"
       end
-      # @html_report << '</ul>'
     end
     @html_report << '</ul>'
   end
 
-  def puts_timeframe( timeframe )
+  def puts_timeframe
     add_head( 'Timeframe contents' )
-    list_title_quoted( timeframe.timeframes.map { |x| x[ 0 ] }, 'Timeframe' )
+    list_title_quoted(
+      @store.timeframe.timeframes.map { |x| x[ 0 ] }, 'Timeframe'
+    )
     count = 0
-    timeframe.timeframes.each_key do |scene|
+    @store.timeframe.timeframes.each_key do |scene|
       puts "\n   Timeframe contents #{quoted( scene )}"
       refu = "timeframeC#{count}"
       refa = "timeframe#{count}"
@@ -1149,26 +1149,26 @@ class Report
       @html_report << '<ul>'
       Timeframe::TIMEFRAME_FIELDS.each_pair do |field, type|
         prefix = prefix_by_title( field )
-        list_quoted( timeframe.timeframes[ scene ][ type ], prefix, type )
+        list_quoted( @store.timeframe.timeframes[ scene ][ type ], prefix, type )
       end
       @html_report << "</ul><br/>\n"
     end
   end
 
-  def list_builds( timeframe )
+  def list_builds
     builds = {}
-    timeframe.timeframes.each_key do |scene|
+    @store.timeframe.timeframes.each_key do |scene|
       builds[ scene ] = {}
       REPORT_BUILDS.each_pair do |name, type|
-        builds[ scene ][ name ] = timeframe.timeframes[ scene ][ type ]
+        builds[ scene ][ name ] = @store.timeframe.timeframes[ scene ][ type ]
       end
     end
     builds
   end
 
-  def hand_props_actors( timeframe, scene, prop_type )
-    scene_props_hands = timeframe.timeframes[ scene ][ 'props_hands' ]
-    props = timeframe.timeframes[ scene ][ prop_type ]
+  def hand_props_actors( scene, prop_type )
+    scene_props_hands = @store.timeframe.timeframes[ scene ][ 'props_hands' ]
+    props = @store.timeframe.timeframes[ scene ][ prop_type ]
     return nil if props.nil?
 
     seen = {}
@@ -1190,14 +1190,14 @@ class Report
     list
   end
 
-  def list_hand_props( timeframe )
+  def list_hand_props
     hands = {}
-    timeframe.timeframes.each_key do |scene|
+    @store.timeframe.timeframes.each_key do |scene|
       hands[ scene ] = []
       REPORT_HANDS.each_pair do |name, type|
-        next unless timeframe.timeframes[ scene ].key?( type )
+        next unless @store.timeframe.timeframes[ scene ].key?( type )
 
-        hand_props_actors( timeframe, scene, type ).each do |arr|
+        hand_props_actors( scene, type ).each do |arr|
           hands[ scene ].push( [ name ].concat( arr ) )
         end
       end
@@ -1205,9 +1205,9 @@ class Report
     hands
   end
 
-  def people_assignments( timeframe, listname, person )
+  def people_assignments( listname, person )
     found = []
-    timeframe.timeframes_lines[ listname ][ person ].each do |line|
+    @store.timeframe.timeframes_lines[ listname ][ person ].each do |line|
       # p line
       case line[ :key ]
       when /^Pers[+]/
@@ -1302,7 +1302,11 @@ class Report
       text << '  '
       row.each do |column|
         text << ' '
-        text << column.to_s unless column.nil?
+        if column.respond_to?( :key? )
+          text << column[ :name ]
+        else
+          text << column.to_s unless column.nil?
+        end
       end
       text << "\n"
     end
@@ -1310,27 +1314,71 @@ class Report
   end
 
   def table_caption( title )
-    href = capitalize( title )
-    "<u id=\"tab#{href}\">#{title}</u>\n<table>"
+    href = 'tab' + capitalize( title )
+    html_u_ref_item( href, title )
   end
 
-  def html_table( table, title )
+  def html_table( table, title, tag = '' )
     html = table_caption( title )
+    html << "\n#{tag}<table>"
     table.each do |row|
       html << '<tr>'
       row.each do |column|
         html << '<td>'
-        html << column.to_s unless column.nil?
+        if column.respond_to?( :key? )
+          html << html_object_name( column )
+        else
+          html << column.to_s unless column.nil?
+        end
         html << '</td>'
       end
       html << "</tr>\n"
     end
     html << "</table><br/>\n"
+    html << tag.sub( '<', '</' )
+    html
+  end
+
+  def html_table_r( table, title, tag = '' )
+    html = table_caption( title )
+    html << "\n#{tag}<table>"
+    table.each do |row|
+      html << '<tr>'
+      row.each do |column|
+        if column.respond_to?( :key? )
+          html << '<td class="x">'
+          html << html_object_name( column )
+          html << '</td>'
+        else
+          case column
+          when nil
+            html << '<td/>'
+          when /^Scene/
+            html << '<td class="r"><div><div><div>'
+            html << column.to_s
+            html << '</div></div></div>'
+            html << '</td>'
+          when 'x'
+            html << '<td class="x">'
+            html << column.to_s
+            html << '</td>'
+          else
+            html << '<td>'
+            html << column.to_s
+            html << '</td>'
+          end
+        end
+      end
+      html << "</tr>\n"
+    end
+    html << "</table><br/>\n"
+    html << tag.sub( '<', '</' )
     html
   end
 
   def html_list( caption, title, hash, seperator = '</td><td>' )
     html = table_caption( caption + ' ' + title )
+    html << "\n<table>"
     hash.each_pair do |item, h2|
       next if h2.nil?
 
@@ -1393,10 +1441,10 @@ class Report
     rows
   end
 
-  def columns_and_rows( timeframe, key )
+  def columns_and_rows( key )
     rows = []
     columns = [ nil ]
-    timeframe.timeframes.each_pair do |scene, hash|
+    @store.timeframe.timeframes.each_pair do |scene, hash|
       next unless hash.key?( key )
 
       columns.push( scene )
@@ -1409,12 +1457,12 @@ class Report
     [ [ columns ], rows ]
   end
 
-  def puts_timeframe_table( timeframe, title, key )
-    table, rows = columns_and_rows( timeframe, key )
+  def puts_timeframe_table( title, key )
+    table, rows = columns_and_rows( key )
     rows = nat_sort_list( rows )
     rows.each do |puppet|
       row = [ puppet ]
-      timeframe.timeframes.each_pair do |_scene, hash|
+      @store.timeframe.timeframes.each_pair do |_scene, hash|
         next unless hash.key?( key )
 
         unless hash[ key ].include?( puppet )
@@ -1425,27 +1473,60 @@ class Report
       end
       table.push( row )
     end
+    @html_report << html_table_r( table, title )
     puts "   #{title}"
     puts_table( table )
     table
   end
 
-  def puts_backdrops_table( timeframe, title, key )
+  def find_backdrop( scene, prop )
+    uses = @store.items[ 'Backdrop' ][ prop ][ :list ].size
+    count = 0
+    @store.items[ 'Backdrop' ][ prop ][ :list ].each do |item|
+      count += 1
+      next if item[ :scene ] != scene
+
+      text = prop.dup
+      text << " <b>(use #{count}/#{uses})</b>" if uses > 1
+      return text if $compat
+
+      return { ref: item[ :loc ], name: text }
+    end
+
+    prop
+  end
+
+  def find_scene_backdrops( scene, prop )
+    @store.items[ 'Backdrop' ][ prop ][ :list ].each do |item|
+      next if item[ :scene ] != scene
+
+      return { ref: item[ :loc ], name: scene }
+    end
+
+    scene
+  end
+
+  def puts_backdrops_table( title, key )
     table = [ [ 'Timeframe', 'Left', 'Middle', 'Right' ] ]
-    timeframe.timeframes.each_pair do |scene, hash|
+    @store.timeframe.timeframes.each_pair do |scene, hash|
       next unless hash.key?( key )
 
-      table.push( [ scene ] + hash[ key ] )
+      row = [ find_scene_backdrops( scene, hash[ key ][ 0 ] ) ]
+      hash[ key ].each do |prop|
+        row.push( find_backdrop( scene, prop ) )
+      end
+      table.push( row )
     end
+    @html_report << html_table( table, title, '<li>' )
     puts "   #{title}"
     puts_table( table )
   end
 
-  def puppet_play_full( timeframe, title, key )
-    table, puppets = columns_and_rows( timeframe, key )
+  def puppet_play_full( title, key )
+    table, puppets = columns_and_rows( key )
     puppets.sort.each do |puppet|
       row = [ puppet ]
-      timeframe.timeframes.each_pair do |_scene, hash|
+      @store.timeframe.timeframes.each_pair do |_scene, hash|
         next unless hash.key?( 'puppet_plays' )
 
         unless hash[ 'puppet_plays' ].key?( puppet )
@@ -1453,37 +1534,24 @@ class Report
           next
         end
         val = hash[ 'puppet_plays' ][ puppet ][ 1 ].dup
-        val << '/' + hash[ 'puppet_plays' ][ puppet ][ 2 ]
+        val << '/' + hash[ 'puppet_plays' ][ puppet ][ 2 ] \
+          if hash[ 'puppet_plays' ][ puppet ][ 2 ] \
+          != hash[ 'puppet_plays' ][ puppet ][ 1 ]
         val << ' (' + hash[ 'puppet_plays' ][ puppet ][ 0 ] + ')'
         row.push( val )
       end
       table.push( row )
     end
+    @html_report << html_table_r( table, title )
     puts "   #{title}"
     puts_table( table )
   end
 
-  def puts_tables( timeframe )
-    puts ''
-    add_head( 'Tables' )
-    list_unsorted( REPORT_TABLES.keys << 'Puppet use', nil )
-    REPORT_TABLES.each_pair do |title, key|
-      case title
-      when 'Backdrops'
-        puts_backdrops_table( timeframe, title, key )
-      when 'Puppet plays'
-        puppet_play_full( timeframe, title, key )
-      else
-        puts_timeframe_table( timeframe, title, key )
-      end
-    end
-  end
-
-  def puppet_role( timeframe )
-    table, puppets = columns_and_rows( timeframe, 'Puppet' )
+  def puppet_use_data( key )
+    table, puppets = columns_and_rows( key )
     puppets.each do |puppet|
       row = [ puppet ]
-      timeframe.timeframes.each_pair do |_scene, hash|
+      @store.timeframe.timeframes.each_pair do |_scene, hash|
         next unless hash.key?( 'puppet_plays' )
 
         unless hash[ 'puppet_plays' ].key?( puppet )
@@ -1494,21 +1562,16 @@ class Report
       end
       table.push( row )
     end
-    puts_table( table )
+    @puppet_plays = table
     table
   end
 
-  def puppet_image( puppet )
-    return "<img #{$puppet_pool[ puppet ]}/>".gsub( '&', '&amp;' ) \
-      if $puppet_pool.key?( puppet )
-  end
-
-  def puppet_clothes( timeframe )
-    table, puppets = columns_and_rows( timeframe, 'Puppet' )
+  def puppet_use_clothes( key )
+    table, puppets = columns_and_rows( key )
     table[ 0 ].insert( 1, 'Image' )
     puppets.each do |puppet|
       row = [ puppet, puppet_image( puppet ) ]
-      timeframe.timeframes.each_pair do |_scene, hash|
+      @store.timeframe.timeframes.each_pair do |_scene, hash|
         next unless hash.key?( 'puppet_plays' )
 
         unless hash[ 'puppet_plays' ].key?( puppet )
@@ -1522,8 +1585,45 @@ class Report
       end
       table.push( row )
     end
-    puts_table( table )
+    @puppet_clothes = table
     table
+  end
+
+  def puts_use_table( title, table )
+    @html_report << html_table( table, title )
+    puts "   #{title}"
+    puts_table( table )
+  end
+
+  def puts_tables
+    puts ''
+    add_head( 'Tables' )
+    @html_report << '<ul>'
+    list_unsorted( REPORT_TABLES.keys, nil )
+    @html_report << "</ul><br/>\n"
+    REPORT_TABLES.each_pair do |title, type|
+      case title
+      when 'Backdrops'
+        puts_backdrops_table( title, type )
+      when 'Puppet plays'
+        puppet_play_full( title, type )
+      when 'Puppet use'
+        puts_use_table( title, puppet_use_data( type ) )
+      when 'Puppet clothes'
+        puts_use_table( title, puppet_use_clothes( type ) )
+      else
+        puts_timeframe_table( title, type )
+      end
+    end
+  end
+
+  def puppet_image( puppet )
+    return "<img #{$puppet_pool[ puppet ]}/>".gsub( '&', '&amp;' ) \
+      if $puppet_pool.key?( puppet )
+  end
+
+  def report( html )
+    @report << html
   end
 
   def save( filename )
@@ -2660,36 +2760,47 @@ end
 qscript.save( 'qscript.txt' )
 
 parser.report.catalog
-parser.report.puts_timeframe( parser.store.timeframe )
-parser.report.catalog_item( parser.store.timeframe )
-parser.report.puts_tables( parser.store.timeframe )
+parser.report.puts_timeframe
+parser.report.catalog_item
+parser.report.puts_tables
 
-table = parser.report.puppet_role( parser.store.timeframe )
-table2 = parser.report.puppet_clothes( parser.store.timeframe )
-builds = parser.report.list_builds( parser.store.timeframe )
-hprops = parser.report.list_hand_props( parser.store.timeframe )
-html = parser.report.html_table( table, 'Puppet use' )
+table = parser.report.puppet_plays
+html_append = parser.report.html_table( table, 'Puppet use' )
+
+table2 = parser.report.puppet_clothes
 clothes = parser.report.html_table( table2, 'Clothes' )
-html << clothes
+html_append << clothes
+
+builds = parser.report.list_builds
 builds.each_pair do |key, h|
-  html << parser.report.html_list( 'Builds', key, h, '; ' )
+  html = parser.report.html_list( 'Builds', key, h, '; ' )
+  html_append << html
+  parser.report.put_html( html )
   parser.report.puts_build_list( 'Builds', key, h, '; ' )
 end
+
+hprops = parser.report.list_hand_props
 hprops.each_pair do |key, h|
-  html << parser.report.html_table( h, 'Hands' + ' ' + key )
+  html = parser.report.html_table( h, 'Hands' + ' ' + key )
+  html_append << html
+  parser.report.put_html( html )
   parser.report.puts_hands_list( 'Hands', key, h )
 end
 
 assignments = parser.report.list_people_assignments
-html << parser.report.html_list( 'All', 'Assignments', assignments )
+html = parser.report.html_list( 'All', 'Assignments', assignments )
+html_append << html
+parser.report.put_html( html )
 parser.report.puts_build_list( 'All', 'Assignments', assignments )
 
-style = File.read( 'style.inc' )
-file_put_contents( 'clothes.html', style + clothes )
-file_put_contents( 'html.html', html )
+html_clothes = File.read( HTML_HEADER_FILE )
+html_clothes << '<body>'
+html_clothes << clothes
+file_put_contents( 'clothes.html', html_clothes )
+file_put_contents( 'html.html', html_append )
 
 parser.report.save( 'test.txt' )
-parser.report.save_html( 'test.html', html )
+parser.report.save_html( 'test.html' )
 
 # Actor.pp
 # Puppet.pp
