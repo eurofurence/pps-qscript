@@ -722,7 +722,10 @@ class Report
     'Puppets' => 'Puppet',
     'Puppet plays' => 'Puppet',
     'Puppet use' => 'Puppet',
-    'Puppet clothes' => 'Puppet'
+    'Puppet clothes' => 'Puppet',
+    'Builds' => nil,
+    'Hands' => 'Actor',
+    'Assignments' => 'Actor'
   }.freeze
   REPORT_BUILDS = {
     'Backdrop panel' => 'Backdrop',
@@ -1195,7 +1198,16 @@ class Report
         end
       next if act == 'None'
 
-      list.push( [ prop, act ] )
+      # p [ 'hand_props_actors', scene, prop_type, prop, act ]
+      hands =
+        if scene_props_hands.key?( prop )
+          scene_props_hands[ prop ].dup.map { |hand| html_object_name( actor( hand ) ) }
+        else
+          [ act ]
+        end
+      hprop = html_object_name( tname( prop_type, prop ) )
+      # list.push( [ html_escape( prop ), html_object_name( actor( act ) ) ] )
+      list.push( [ hprop, hands.join( ', ' ) ] )
     end
     list
   end
@@ -1252,29 +1264,30 @@ class Report
   end
 
   def merge_assignments( assignments, actor, action )
+    hactor = actor( actor )
     if assignments.key?( action )
-      assignments[ action ] ||= [ actor ]
+      assignments[ action ] ||= [ hactor ]
     else
-      assignments[ action ] = [ actor ]
+      assignments[ action ] = [ hactor ]
     end
   end
 
   def merge_assignments_role( assignments, actor, entry )
     if entry.key?( :player )
-      action = entry[ :role ] + '.player'
+      action = [ entry[ :role ], 'player' ]
       merge_assignments( assignments, actor, action )
       return
     end
 
     if entry.key?( :hands )
-      action = entry[ :role ] + '.hands'
+      action = [ entry[ :role ], 'hands' ]
       merge_assignments( assignments, actor, action )
       return
     end
 
     return unless entry.key?( :voice )
 
-    action = entry[ :role ] + '.voice'
+    action = [ entry[ :role ], 'voice' ]
     merge_assignments( assignments, actor, action )
   end
 
@@ -1321,7 +1334,7 @@ class Report
         if column.respond_to?( :key? )
           html << html_object_name( column )
         else
-          html << html_escape( column.to_s ) unless column.nil?
+          html << column.to_s unless column.nil?
         end
         html << '</td>'
       end
@@ -1381,9 +1394,14 @@ class Report
 
         seen[ text ] = true
         html << '<tr><td>'
-        html << html_escape( item.to_s )
+        if item.respond_to?( :shift )
+          subs = item.dup.map { |i| html_object_name( i ) }
+          html << subs.join( '.' )
+        else
+          html << html_object_name( item )
+        end
         html << seperator
-        html << html_escape( text.to_s )
+        html << html_object_name( text )
         html << "</td></tr>\n"
       end
     end
@@ -1479,8 +1497,12 @@ class Report
       end
       table.push( row )
     end
-    @html_report << html_table( table, title, '<ul><li>' )
-    @html_report << '</li></ul>'
+    @html_report <<
+      if $compat
+        html_table( table, title, '<ul><li>' ) + '</li></ul>'
+      else
+        html_table( table, title )
+      end
   end
 
   def puppet_play_full( title, key )
@@ -1552,6 +1574,31 @@ class Report
     @html_report << html_table( table, title )
   end
 
+  def puts_builds_table( title )
+    @html_report << table_caption( title )
+    @html_report << "<br/>\n"
+    builds = list_builds
+    builds.each_pair do |key, h|
+      @html_report << html_list( 'Builds', key, h, '; ' )
+    end
+  end
+
+  def puts_hands_table( title )
+    @html_report << table_caption( title )
+    @html_report << "<br/>\n"
+    hprops = list_hand_props
+    hprops.each_pair do |key, h|
+      @html_report << html_table( h, 'Hands' + ' ' + key )
+    end
+  end
+
+  def puts_assignments_table( title )
+    @html_report << table_caption( title )
+    @html_report << "<br/>\n"
+    assignments = list_people_assignments
+    @html_report << html_list( 'All', 'Assignments', assignments )
+  end
+
   def puts_tables
     add_head( 'Tables' )
     @html_report << '<ul>'
@@ -1567,6 +1614,12 @@ class Report
         puts_use_table( title, puppet_use_data( type ) )
       when 'Puppet clothes'
         puts_use_table( title, puppet_use_clothes( type ) )
+      when 'Builds'
+        puts_builds_table( title )
+      when 'Hands'
+        puts_hands_table( title )
+      when 'Assignments'
+        puts_assignments_table( title )
       else
         puts_timeframe_table( title, type )
       end
@@ -1609,7 +1662,7 @@ end
 #   Parser.parse_single_puppet( line )
 #   Parser.suffix_props( line, key )
 #   Parser.tagged_props( line, key )
-#   Parser.parse_single_prop( line, key, type = nil )
+#   Parser.parse_single_prop( line, key, type )
 #   Parser.parse_all_props( line )
 #   Parser.parse_section_data( section, line )
 #   Parser.parse_table_role( line )
@@ -1685,6 +1738,12 @@ class Parser
   PERSPROP_NAMES = [ 'PersonalProp', 'personalProp', 'PerP' ].freeze
   JUSTPERS_NAMES = [ 'PersonalProp', 'just personalProp', 'JPerP' ].freeze
   BACKDROP_FIELDS = [ 'Left', 'Middle', 'Right' ].freeze
+  REPORT_KEYS = {
+    'FrontProp' => 'FroP',
+    'SecondLevelProp' => 'SecP',
+    'HandProp' => 'HanP',
+    'PersonalProp' => 'PerP'
+  }.freeze
   ITEM_TAGS = {
     'fp' => 'FrontProp',
     'pr' => 'FrontProp', # Backward compatible
@@ -1946,7 +2005,7 @@ class Parser
     result
   end
 
-  def parse_single_prop( line, key, type = nil )
+  def parse_single_prop( line, key, type )
     line.scan( /<#{key}>(#{MATCH_SNAME})<\/#{key}>/i ) do |m|
       next if m.empty?
 
@@ -1963,6 +2022,17 @@ class Parser
         p [ 'parse_single_prop', hands ]
         @scene_props_hands[ prop ] = hands
         @store.add_item( type, prop, hands: hands )
+        hands.each do |hand|
+          next if hand == 'None'
+
+          @store.add_item( 'Actor', hand, prop: prop, stagehand: true )
+          reportkey = REPORT_KEYS[ type ]
+          next if reportkey.nil?
+
+          @store.timeframe.add_list_text(
+            'Actor', reportkey, hand, [ actor( hand ), tname( type, prop ) ]
+          )
+        end
       end
     end
   end
@@ -2808,40 +2878,14 @@ parser.report.catalog
 parser.report.puts_timeframe
 parser.report.catalog_item
 parser.report.puts_tables
-
-table = parser.report.puppet_plays
-html_append = parser.report.html_table( table, 'Puppet use' )
+parser.report.save_html( 'out.html' )
 
 table2 = parser.report.puppet_clothes
 clothes = parser.report.html_table( table2, 'Clothes' )
-html_append << clothes
-
-builds = parser.report.list_builds
-builds.each_pair do |key, h|
-  html = parser.report.html_list( 'Builds', key, h, '; ' )
-  html_append << html
-  parser.report.put_html( html )
-end
-
-hprops = parser.report.list_hand_props
-hprops.each_pair do |key, h|
-  html = parser.report.html_table( h, 'Hands' + ' ' + key )
-  html_append << html
-  parser.report.put_html( html )
-end
-
-assignments = parser.report.list_people_assignments
-html = parser.report.html_list( 'All', 'Assignments', assignments )
-html_append << html
-parser.report.put_html( html )
-
 html_clothes = File.read( HTML_HEADER_FILE )
 html_clothes << '<body>'
 html_clothes << clothes
 file_put_contents( 'clothes.html', html_clothes )
-file_put_contents( 'html.html', html_append )
-
-parser.report.save_html( 'out.html' )
 
 # pp parser.store.items[ 'FrontProp' ]
 # pp parser.store.items[ 'Backdrop' ]
