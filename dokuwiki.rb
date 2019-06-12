@@ -31,6 +31,8 @@ module DokuWiki
   #   DokuWiki.downloaded?( filename, buffer )
   #   DokuWiki.file_put_contents( filename, line, mode = 'w+' )
   #   DokuWiki.save_wiki_source( page, filename )
+  #   DokuWiki.save_wiki_body( filename, url )
+  #   DokuWiki.save_wiki_media( filename, url )
   #   DokuWiki.save_wiki_path( wikipath )
   #   DokuWiki.uploaded?( filename, buffer )
   #   DokuWiki.save_uploaded( filename )
@@ -39,9 +41,13 @@ module DokuWiki
   #   DokuWiki.upload_file( wikipath, filename )
   #
   class DokuWikiAccess
+    # directory for upload cache
     UPLOAD_DIR = 'UPLOAD'.freeze
+    # directory for media download cache
     MEDIA_DIR = 'media'.freeze
+    # extension for files in dokuwiki syntax
     EXTENSION = 'wiki'.freeze
+    # filename for cookie cache
     COOKIES = 'cookies.txt'.freeze
 
     # define server location
@@ -53,8 +59,8 @@ module DokuWiki
       @dokuwiki_page_url = "#{@site}/doku.php?id=".freeze
       @dokuwiki_css_url = "#{@site}/lib/exe/css.php?t=".freeze
       @dokuwiki_media_url = "#{@site}/lib/exe/fetch.php?cache=&media=".freeze
-      @dokuwiki_media_upload_url =
-        "#{@site}/lib/exe/ajax.php?tab_files=files&tab_details=view&do=media&ns=".freeze
+      @dokuwiki_media_upload_url = "#{@site}/lib/exe/ajax.php?" \
+        'tab_files=files&tab_details=view&do=media&ns='.freeze
       @upload_dir = UPLOAD_DIR
       @lastpage = nil
       @cookies = nil
@@ -103,7 +109,6 @@ module DokuWiki
 
     # login into DokuWiki at given path
     def login( wikipath, user, pass )
-      page = nil
       Timeout.timeout( 300 ) do
         @agent = Mechanize.new
         @agent.agent.http.verify_mode = OpenSSL::SSL::VERIFY_NONE
@@ -112,7 +117,7 @@ module DokuWiki
         if @cookies.nil?
           url = @dokuwiki_page_url + wikipath
           page = get( url )
-          pp page
+          # pp page
           # Submit the login form
           wait_second
           page = page.form_with( id: 'dw__login' ) do |f|
@@ -122,11 +127,10 @@ module DokuWiki
           end.click_button
           # pp page
           # pp page.forms
-          pp page.forms[ 1 ]
           f = page.forms[ 1 ]
-          pp f
+          # pp f
           @sectok = f.field_with( name: 'sectok' ).value
-          pp @sectok
+          # pp @sectok
           @agent.cookie_jar.save( COOKIES )
         else
           # p cookies
@@ -139,7 +143,7 @@ module DokuWiki
     def downloaded?( filename, buffer )
       return false unless File.exist?( filename )
 
-      old =  File.read( filename )
+      old = File.read( filename, encoding: buffer.encoding )
       return true if buffer == old
 
       false
@@ -164,29 +168,31 @@ module DokuWiki
       @agent.submit( f, button )
     end
 
+    # save wiki body to file
+    def save_wiki_body( filename, url )
+      page = get( url )
+      # pp page
+      file_put_contents( filename, page.body )
+    end
+
+    # save wiki media body to file
+    def save_wiki_media( filename, url )
+      save_wiki_body( "#{MEDIA_DIR}/#{filename}", url )
+    end
+
     # save wiki path to file
     def save_wiki_path( wikipath )
       filename = wikipath.split( ':' ).last
       case wikipath
-      when /[.]jpe*g$/, /[.]pdf$/
+      when /[.]jpe?g$/, /[.]png$/, /[.]pdf$/
         url = @dokuwiki_media_url + wikipath
-        filename = "#{MEDIA_DIR}/#{filename}"
-        page = get( url )
-        # pp page
-        file_put_contents( filename, page.body )
+        save_wiki_media( filename, url )
       when /[.]css$/
         url = @dokuwiki_css_url + wikipath.sub( /[.]css$/, '' )
-        filename = "#{MEDIA_DIR}/#{filename}"
-        page = get( url )
-        # pp page
-        pp page
-        file_put_contents( filename, page.body )
-      when /[.]raw$/
-        filename.sub!( /[.]raw$/, '.html' )
-        url = edit_url( wikipath.sub( /[.]raw$/, '' ) )
-        page = get( url )
-        # pp page
-        file_put_contents( filename, page.body )
+        save_wiki_media( filename, url )
+      when /[.]html$/
+        url = @dokuwiki_page_url + wikipath.sub( /[.]html$/, '' )
+        save_wiki_body( filename, url )
       else
         url = edit_url( wikipath )
         filename << ".#{EXTENSION}"
@@ -201,7 +207,7 @@ module DokuWiki
       savedfile = "#{@upload_dir}/#{filename}"
       return false unless File.exist?( savedfile )
 
-      old =  File.read( savedfile )
+      old = File.read( savedfile, encoding: buffer.encoding )
       return true if buffer == old
 
       false
@@ -223,7 +229,7 @@ module DokuWiki
       p url
       wait_second
       page = @agent.post( url, raw, headers )
-      pp page
+      # pp page
       save_uploaded( filename )
     end
 
