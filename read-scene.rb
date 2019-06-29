@@ -12,21 +12,39 @@ require 'pp'
 
 $: << '.'
 
+# config file for groups of roles
 ROLES_CONFIG_FILE = 'roles.ini'.freeze
+# config file for patterns to replace
 SUBS_CONFIG_FILE = 'subs.ini'.freeze
+# list of puppets and image html code
 PUPPET_POOL_FILE = 'puppet_pool.csv'.freeze
+# general header for html output files
 HTML_HEADER_FILE = 'header.html'.freeze
+# regular expression for matching names
 MATCH_NAME = '[A-Za-z0-9_-]+'.freeze
-MATCH_SNAME = '[A-Za-z0-9_ \'-]+'.freeze
+# regular expression for matching names within a tag
+MATCH_SNAME = '[^<]+'.freeze
 
 $nat_sort = true
 $compat = false
 $compat2 = true
 
-# put buffer to file
-def file_put_contents( filename, line, mode = 'w+' )
+# check if downloaded file has changed
+def downloaded?( filename, buffer )
+  return false unless File.exist?( filename )
+
+  old =  File.read( filename )
+  return true if buffer == old
+
+  false
+end
+
+# write buffer to file
+def file_put_contents( filename, buffer, mode = 'w+' )
+  return if downloaded?( filename, buffer )
+
   File.open( filename, mode ) do |f|
-    f.write( line )
+    f.write( buffer )
     f.close
   end
 end
@@ -63,6 +81,7 @@ def quoted_noescape( text )
   '"' + text + '"'
 end
 
+# convert special characters to html codes
 def html_escape( text )
   html = text.dup
   html.gsub!( '<', '&#60;' )
@@ -79,26 +98,32 @@ def html_escape( text )
   html
 end
 
+# make a hash with name and given type
 def tname( type, name )
   { type: type, name: name }
 end
 
+# make a hash with name and Role type
 def role( name )
   { type: 'Role', name: name }
 end
 
+# make a hash with name and Actor type
 def actor( name )
   { type: 'Actor', name: name }
 end
 
+# make a hash with name and Puppet type
 def puppet( name )
   { type: 'Puppet', name: name }
 end
 
+# make a hash with name and Clothing type
 def clothing( name )
   { type: 'Clothing', name: name }
 end
 
+# read patters for replacements from given file
 def read_subs( filename )
   subs = {}
   File.read( filename ).split( "\n" ).each do |line|
@@ -114,6 +139,7 @@ end
 #   RolesConfig.new( filename )
 #   RolesConfig.map_roles( name )
 class RolesConfig
+  # create a mapping table
   def initialize( filenmae )
     @roles_map = {}
     return unless File.exist?( filenmae )
@@ -126,10 +152,12 @@ class RolesConfig
     end
   end
 
+  # add a mapping to the table
   def add_roles( name, list )
     @roles_map[ name ] = list
   end
 
+  # read a mapping from the table
   def map_roles( name )
     return [ name ] unless @roles_map.key?( name )
 
@@ -147,19 +175,23 @@ end
 #   QScript.puts_key_token( key, token, name, text = nil )
 #   QScript.save( filename )
 class QScript
+  # current line number of qscript
   attr_reader :lines
 
+  # create a qscript buffer
   def initialize
     @script = ''
     @lines = 0
   end
 
+  # add a line to qscript
   def puts( line )
     @script << line
     @script << "\n"
     @lines += 1
   end
 
+  # build a line from given list and add the line to qscript
   def puts_list( list )
     key = list.shift
     text = "\t#{key}"
@@ -172,18 +204,22 @@ class QScript
     puts text
   end
 
+  # merge key and list, then add the line to qscript
   def puts_key_list( key, list )
     puts_list( [ key ].concat( list ) )
   end
 
+  # merge key, list and text, then add the line to qscript
   def puts_key( key, name, text = nil )
     puts_list( [ key, name, text ] )
   end
 
+  # merge key, token, name and text, then add the line to qscript
   def puts_key_token( key, token, name, text = nil )
     puts_list( [ "#{key}#{token}", name, text ] )
   end
 
+  # write the final qscript into the given file
   def save( filename )
     file_put_contents( filename, @script )
   end
@@ -210,6 +246,7 @@ end
 #   Timeframe.add_spoken( name )
 #   Timeframe.list( key )
 class Timeframe
+  # List of items to monitor per timeframe
   TIMEFRAME_FIELDS = {
     'Front props' => 'FrontProp',
     'Second level props' => 'SecondLevelProp',
@@ -225,15 +262,22 @@ class Timeframe
     'Clothes' => 'Clothing',
     'Personal props' => 'PersonalProp',
     'Hand props' => 'HandProp',
+    'Tech props' => 'TechProp',
     'Todos' => 'Todo'
   }.freeze
 
+  # the current qscript object
   attr_reader :qscript
+  # the current timeframe
   attr_reader :timeframe
+  # the current timeframe number
   attr_reader :timeframe_count
+  # the full timeframe list
   attr_reader :timeframes
+  # the full timeframe lines
   attr_reader :timeframes_lines
 
+  # create a timeframe
   def initialize( qscript )
     @timeframe = nil
     @timeframe_count = -1
@@ -242,16 +286,19 @@ class Timeframe
     @qscript = qscript
   end
 
+  # start a new scene
   def scene( title )
     @timeframe = title
     @timeframe_count += 1
     @timeframes[ @timeframe ] = { number: @timeframe_count }
   end
 
+  # get the list of the current timeframe
   def this_timeframe
     @timeframes[ @timeframe ]
   end
 
+  # check if we have a new item in the current timeframe
   def seen?( key, name )
     return false unless @timeframes[ @timeframe ].key?( key )
     return false unless @timeframes[ @timeframe ][ key ].include?( name )
@@ -259,6 +306,7 @@ class Timeframe
     true
   end
 
+  # add an new item to the current timeframe
   def add( key, val )
     raise if val.nil?
 
@@ -267,6 +315,7 @@ class Timeframe
     @timeframes[ @timeframe ][ key ].push( val )
   end
 
+  # add an item to the current timeframe if it is new
   def add_once( key, val )
     raise if val.nil?
 
@@ -277,16 +326,19 @@ class Timeframe
     @timeframes[ @timeframe ][ key ].push( val )
   end
 
+  # add a hash to the current timeframe
   def add_hash( hashkey, key, val )
     @timeframes[ @timeframe ][ hashkey ] = {} \
       unless @timeframes[ @timeframe ].key?( hashkey )
     @timeframes[ @timeframe ][ hashkey ][ key ] = val
   end
 
+  # add a table to the current timeframe
   def add_table( hashkey, table )
     @timeframes[ @timeframe ][ hashkey ] = table
   end
 
+  # add an full entry to the timeframes lines
   def add_list_text( storekey, reportkey, name, text )
     @timeframes_lines[ storekey ] = {} unless @timeframes_lines.key?( storekey )
     @timeframes_lines[ storekey ][ name ] = [] \
@@ -297,23 +349,35 @@ class Timeframe
     )
   end
 
+  # add an item to the timeframes lines
   def add_list( storekey, reportkey, token, name )
     reportkey2 = "#{reportkey}#{token}"
     add_list_text( storekey, reportkey2, name, tname( storekey, name ) )
   end
 
+  # add an prop to the timeframes lines
   def add_prop( storekey, reportkey, token, list )
-    name, owner, puppet = list
+    name, owner, hands, puppet = list
     reportkey2 = "#{reportkey}#{token}"
     line = [ role( owner ), tname( storekey, name ) ]
     add_list_text( storekey, reportkey2, name, line )
     add_list_text( 'Role', reportkey2, owner, line )
+    unless hands.nil?
+      hands.each do |hand|
+        next if hand == 'None'
+
+        add( 'Actor', hand )
+        add_list_text( 'Actor', reportkey2, hand, line )
+      end
+    end
+
     return if puppet.nil?
     return if reportkey == 'HanP'
 
     add_list_text( 'Puppet', reportkey2, puppet, line )
   end
 
+  # count a spoken line
   def count_spoken( key, name )
     @timeframes_lines[ key ] = {} unless @timeframes_lines.key?( key )
     if @timeframes_lines[ key ].key?( name )
@@ -326,10 +390,12 @@ class Timeframe
     @timeframes_lines[ key ][ name ] = [ '#' ]
   end
 
+  # add a spoken line to the current timeframe
   def add_spoken( type, name )
     add_list_text( type + '_sum_spoken', 'Spokn', name, nil )
   end
 
+  # add a full list or hash to the current timeframe
   def list( key )
     return [] unless @timeframes[ @timeframe ].key?( key )
 
@@ -346,7 +412,7 @@ end
 #   Store.add( collection, key, val )
 #   Store.count( collection, key )
 #   Store.add_item( type, name, hash )
-#   Store.error_mesage( list )
+#   Store.error_message( list )
 #   Store.check_actor( name )
 #   Store.uniq_player( player, prefix, name )
 #   Store.add_person( name, what, player, prefix )
@@ -356,6 +422,7 @@ end
 #   Store.add_role( name, list )
 #   Store.add_backdrop( position, backdrop )
 class Store
+  # map items type to location index
   ITEM_TYPE_INDEX = {
     'FrontProp' => 0,
     'SecondLevelProp' => 1,
@@ -371,8 +438,10 @@ class Store
     'Clothing' => 11,
     'PersonalProp' => 12,
     'HandProp' => 13,
+    'TechProp' => 13,
     'Todo' => 14
   }.freeze
+  # list we will collect
   COLLECTION_FIELDS = [
     'notes',
     'role_puppets',
@@ -381,15 +450,21 @@ class Store
     'owned_props',
     'PersonalProp_owner',
     'HandProp_owner',
+    'TechProp_owner',
     'stagehand',
     'todos'
   ].freeze
 
+  # items list
   attr_reader :items
+  # collection list
   attr_reader :collection
+  # timeframe object
   attr_reader :timeframe
+  # hash of placeholder names
   attr_reader :ignore
 
+  # create a store
   def initialize( timeframe )
     @items = {}
     @collection = {}
@@ -412,10 +487,12 @@ class Store
     }
   end
 
+  # add an item to the collection
   def add( collection, key, val )
     @collection[ collection ][ key ] = val
   end
 
+  # count an item in the collection
   def count( collection, key )
     storekey = collection + '_count'
     @collection[ storekey ] = {} unless @collection.key?( storekey )
@@ -426,6 +503,7 @@ class Store
     end
   end
 
+  # add an item to the collection
   def add_item( type, name, hash )
     unless @items[ type ].key?( name )
       count = @items[ type ].size
@@ -433,20 +511,23 @@ class Store
       @items[ type ][ name ] = {}
       @items[ type ][ name ][ :ref ] = "item#{item_index}_#{count}"
       @items[ type ][ name ][ :list ] = []
+      # @items[ type ][ name ][ :name ] = name
     end
     play = {
       loc: "loc#{@timeframe.qscript.lines}_2",
       scene: @timeframe.timeframe
     }.merge( hash )
+    @items[ type ][ name ][ :name ] = hash[ :text ] \
+      unless @items[ type ][ name ].key?( :name )
     @items[ type ][ name ][ :list ] << play
   end
 
-  def error_mesage( *list )
-    text = 'TODO: '
-    text << list.join( ' ' )
-    text
+  # add an error_message
+  def error_message( *list )
+    list.join( ' ' )
   end
 
+  # check an actor for collisions
   def check_actor( name )
     return nil unless @items[ 'Actor' ].key?( name )
 
@@ -458,11 +539,11 @@ class Store
 
       if item.key?( :stagehand )
         if seen.key?( :player )
-          return error_mesage(
-            "Person #{name} can't act as a stagehand",
-            "for #{item[ :prop ]} here",
-            "because it's already .player/hands",
-            "of role #{seen[ :player ].join( ',' )}"
+          return error_message(
+            "Person '#{name}' can't act as a stagehand",
+            "for '#{item[ :prop ]}',",
+            "because it's already Player/Hands",
+            "for '#{seen[ :player ].join( ',' )}'"
           )
         end
 
@@ -474,26 +555,27 @@ class Store
       next if !item.key?( :player ) && !item.key?( :hands )
 
       if seen.key?( :stagehand )
-        return error_mesage(
-          "#{item[ :role ]}.player/hands can't be set to #{name}",
+        return error_message(
+          "Player/Hands for '#{item[ :role ]}' can't be set to '#{name}',",
           "because it's already a stagehand",
-          "for #{seen[ :stagehand ].join( ',' )}"
+          "for '#{seen[ :stagehand ].join( ',' )}'"
         )
       end
 
       seen[ :player ] = [] unless seen.key?( :player )
       seen[ :player ].push( item[ :role ] )
       if seen[ :player ].uniq.size > 1
-        return error_mesage(
-          "#{item[ :role ]}.player/hands can't be set",
-          "because it's already a .player/hands",
-          "of role #{seen[ :player ].join( ',' )}"
+        return error_message(
+          "Player/Hands for '#{item[ :role ]}' can't be set to '#{name}',",
+          "because it's already a Player/Hands",
+          "of role '#{seen[ :player ].join( ',' )}'"
         )
       end
     end
     nil
   end
 
+  # create a uniq player name if needed
   def uniq_player( player, prefix, name )
     if player.nil?
       @ignore[ prefix ] += 1
@@ -513,8 +595,11 @@ class Store
     result
   end
 
+  # add an actor to a role
   def add_person( name, what, player, prefix )
     player = uniq_player( player, prefix, name )
+    return player if player == 'None'
+
     @collection[ 'Role' ][ name ][ what ] = player
     add( 'Actor', player, name )
     if what == 'voice'
@@ -532,12 +617,16 @@ class Store
     player
   end
 
+  # add a voice to a role
   def add_voice( name, voice )
     add_person( name, 'voice', voice, 'Actor' )
   end
 
+  # add a puppet to a role
   def add_puppet( name, puppet )
     puppet = uniq_player( puppet, 'Puppet', name )
+    return puppet if puppet == 'None'
+
     add( 'role_puppets', name, puppet )
     add( 'Puppet', puppet, name )
     @timeframe.add( 'Puppet', puppet )
@@ -550,6 +639,7 @@ class Store
     puppet
   end
 
+  # add a clothing to a role
   def add_clothing( name, clothing )
     clothing = uniq_player( clothing, 'Costume', name )
     return nil if clothing == 'None'
@@ -568,6 +658,7 @@ class Store
     clothing
   end
 
+  # drop a clothing for a role
   def drop_one_clothing( role, puppet, clothing )
     # p [ 'drop_one_clothing', role, puppet, clothing ]
     collection[ 'role_old_clothes' ][ role ] = clothing
@@ -586,6 +677,7 @@ class Store
     )
   end
 
+  # save a role with all actors, puppet and clothing
   def store_role( name, list )
     player, hands, voice, puppet, clothing = list
     voice = voice.nil? ? player : voice
@@ -595,16 +687,19 @@ class Store
       player: player, hands: hands, voice: voice,
       puppet: puppet, clothing: clothing
     )
-    add_item( 'Actor', player, role: name, player: true )
+    add_item( 'Actor', player, role: name, player: true ) \
+      unless player == 'None'
     add_item( 'Actor', voice, role: name, voice: true ) \
       unless voice == 'None'
-    add_item( 'Actor', hands, role: name, hands: true )
+    add_item( 'Actor', hands, role: name, hands: true ) \
+      unless hands == 'None'
     add_item( 'Puppet', puppet, role: name, clothing: clothing )
     return if clothing.nil?
 
     add_item( 'Clothing', clothing, role: name, puppet: puppet )
   end
 
+  # add a role
   def add_role( name, list )
     count( 'Role', name )
     add( 'Role', name, {} )
@@ -612,19 +707,9 @@ class Store
     player, hands, voice, puppet, clothing = list
     uplayer = add_person( name, 'player', player, 'Actor' )
     voice = voice.nil? ? uplayer : voice
-    uvoice =
-      if voice == 'None'
-        voice
-      else
-        add_voice( name, voice )
-      end
+    uvoice = add_voice( name, voice )
     hands = hands.nil? ? uplayer : hands
-    uhands =
-      if hands == 'None'
-        hands
-      else
-        add_person( name, 'hands', hands, 'Hands' )
-      end
+    uhands = add_person( name, 'hands', hands, 'Hands' )
     upuppet = add_puppet( name, puppet )
     uclothing = add_clothing( name, clothing )
     @timeframe.add_hash(
@@ -633,6 +718,7 @@ class Store
     store_role( name, [ uplayer, uhands, uvoice, upuppet, uclothing ] )
   end
 
+  # add a backdrop at given position
   def add_backdrop( position, backdrop )
     key = "#{backdrop} #{position}"
     count( 'Backdrop', key )
@@ -644,7 +730,6 @@ end
 
 # === Class Functions
 #   Report.new( store, qscript )
-#   Report.puppet_plays
 #   Report.puppet_clothes
 #   Report.put_html( line )
 #   Report.puts_html( line )
@@ -658,7 +743,6 @@ end
 #   Report.puts2_key_token( key, token, name, text = nil )
 #   Report.capitalize( item )
 #   Report.href( item )
-#   Report.html_a_ref_item( ref, item )
 #   Report.html_li_ref_item( ref, item )
 #   Report.html_li_p_ref_item( ref, item )
 #   Report.html_li_p2_ref_item( ref, scene, key, item )
@@ -698,6 +782,7 @@ end
 #   Report.puppet_image( puppet )
 #   Report.save_html( filename )
 class Report
+  # map item table names to item type
   REPORT_CATALOG = {
     'Front props' => 'FrontProp',
     'Second level props' => 'SecondLevelProp',
@@ -713,8 +798,10 @@ class Report
     'Clothes' => 'Clothing',
     'Personal props' => 'PersonalProp',
     'Hand props' => 'HandProp',
+    'Tech props' => 'TechProp',
     'Todos' => 'Todo'
   }.freeze
+  # map extra table names to item type
   REPORT_TABLES = {
     'Backdrops' => 'Backdrop',
     'Roles' => 'Role',
@@ -727,21 +814,26 @@ class Report
     'Hands' => 'Actor',
     'Assignments' => 'Actor'
   }.freeze
+  # map build table names to item type
   REPORT_BUILDS = {
     'Backdrop panel' => 'Backdrop',
     'Effect' => 'Effect',
     'Front prop' => 'FrontProp',
     'Second level prop' => 'SecondLevelProp',
     'Personal prop' => 'PersonalProp',
-    'Hand prop' => 'HandProp'
+    'Hand prop' => 'HandProp',
+    'Tech prop' => 'TechProp'
   }.freeze
+  # map hands table names to item type
   REPORT_HANDS = {
     'Effect' => 'Effect',
     'Front prop' => 'FrontProp',
     'Second level prop' => 'SecondLevelProp',
     'Personal prop' => 'PersonalProp',
-    'Hand prop' => 'HandProp'
+    'Hand prop' => 'HandProp',
+    'Tech prop' => 'TechProp'
   }.freeze
+  # list of item type
   ITEM_LIST = [
     'FrontProp',
     'SecondLevelProp',
@@ -757,12 +849,14 @@ class Report
     'Clothing',
     'PersonalProp',
     'HandProp',
+    'TechProp',
     'Todo'
   ].freeze
 
-  attr_accessor :puppet_plays
+  # table of puppet clothes
   attr_accessor :puppet_clothes
 
+  # create a report
   def initialize( store, qscript )
     @store = store
     @qscript = qscript
@@ -778,15 +872,18 @@ class Report
     @html_head << html_li_item( 'Script' )
   end
 
+  # add a line to the report
   def put_html( line )
     @html_report << line
   end
 
+  # add a line with linefeed to the report
   def puts_html( line )
     @html_report << line
     @html_report << "\n"
   end
 
+  # find an item of given type
   def find_item_of_type( name, type )
     if @store.items.key?( type )
       return @store.items[ type ][ name ] if @store.items[ type ].key?( name )
@@ -796,6 +893,7 @@ class Report
     nil
   end
 
+  # find an item of any type
   def find_item( name )
     ITEM_LIST.each do |key|
       next unless @store.items.key?( key )
@@ -807,6 +905,7 @@ class Report
     nil
   end
 
+  # get the ref attribute of an item
   def html_object_ref( name )
     if name.respond_to?( :key? )
       obj = find_item_of_type( name[ :name ], name[ :type ] )
@@ -821,10 +920,12 @@ class Report
     nil
   end
 
+  # create an internal html link
   def to_html( ref, name )
     "<a href=\"##{ref}\">#{html_escape( name )}</a>"
   end
 
+  # create html output or an internal html link to the item
   def html_object_name( name )
     if name.respond_to?( :key? )
       return to_html( name[ :ref ], name[ :name ] ) if name.key?( :ref )
@@ -839,6 +940,7 @@ class Report
     html_escape( name )
   end
 
+  # print a html line
   def html_p( arr )
     loc = "loc#{@qscript.lines}_2"
     key = arr.shift
@@ -869,6 +971,7 @@ class Report
     puts_html( html )
   end
 
+  # merge key. name and text, then print a html line
   def puts2_key( key, name, text = nil )
     if text.nil?
       html_p( [ key, name ] )
@@ -877,14 +980,17 @@ class Report
     end
   end
 
+  # merge key. token, name and text, then print a html line
   def puts2_key_token( key, token, name, text = nil )
     puts2_key( key + token, name, text )
   end
 
+  # capitalize and strip a text to an identifier
   def capitalize( item )
     item.tr( ' ', '_' ).gsub( /^[a-z]|[\s._+-]+[a-z]/, &:upcase ).delete( '_"' )
   end
 
+  # generate a identifier for a table
   def href( item )
     citem = capitalize( item )
     if $compat2
@@ -899,14 +1005,12 @@ class Report
     item[ 0 .. 0 ].downcase + citem[ 1 .. -1 ].delete( ' "-' )
   end
 
-  def html_a_ref_item( ref, item )
-    "<a href=\"##{ref}\">#{item}</a>"
-  end
-
+  # generate an list entry for an item
   def html_li_ref_item( ref, item )
-    '<li>' + html_a_ref_item( ref, item ) + "</li>\n"
+    '<li>' + to_html( ref, item ) + "</li>\n"
   end
 
+  # generate an paragraph with an anchor for an item
   def html_li_p_ref_item( ref, item )
     if $compat
       "<li class=\"p\" id=\"#{ref}\">#{item}"
@@ -915,10 +1019,12 @@ class Report
     end
   end
 
+  # generate an paragraph with an link to the scene
   def html_li_p2_ref_item( ref, scene, key, item )
     "<p><a href=\"##{ref}\">#{scene}</a>: #{key} #{item}</p>\n"
   end
 
+  # generate an list entry for an item
   def html_li_item( item )
     html_li_ref_item( href( item ), item )
   end
@@ -1082,7 +1188,7 @@ class Report
           count = @store.timeframe.timeframes[ h[ :scene ] ][ :number ]
           refa = "timeframe#{count}"
           html_list <<
-            '<p>' + html_a_ref_item( refa, h[ :scene ] ) +
+            '<p>' + to_html( refa, h[ :scene ] ) +
             ': ' + text + "</p>\n"
         end
       end
@@ -1155,7 +1261,7 @@ class Report
       count = @store.timeframe.timeframes[ scene ][ :number ]
       refu = "timeframeC#{count}"
       refa = "timeframe#{count}"
-      item = 'Timeframe contents ' + html_a_ref_item( refa, quoted( scene ) )
+      item = 'Timeframe contents ' + to_html( refa, quoted( scene ) )
       @html_report << html_u_ref_item( refu, item ) + "\n"
       @html_report << '<ul>'
       Timeframe::TIMEFRAME_FIELDS.each_pair do |field, type|
@@ -1201,7 +1307,9 @@ class Report
       # p [ 'hand_props_actors', scene, prop_type, prop, act ]
       hands =
         if scene_props_hands.key?( prop )
-          scene_props_hands[ prop ].dup.map { |hand| html_object_name( actor( hand ) ) }
+          scene_props_hands[ prop ].dup.map do |hand|
+            html_object_name( actor( hand ) )
+          end
         else
           [ act ]
         end
@@ -1543,7 +1651,6 @@ class Report
       end
       table.push( row )
     end
-    @puppet_plays = table
     table
   end
 
@@ -1662,6 +1769,7 @@ end
 #   Parser.parse_single_puppet( line )
 #   Parser.suffix_props( line, key )
 #   Parser.tagged_props( line, key )
+#   Parser.header_single_prop( prop, hands, names )
 #   Parser.parse_single_prop( line, key, type )
 #   Parser.parse_all_props( line )
 #   Parser.parse_section_data( section, line )
@@ -1683,14 +1791,12 @@ end
 #   Parser.search_simple_props( line, suffix, tag )
 #   Parser.collect_simple_props( line, suffix, tag, names )
 #   Parser.search_handprop( line )
-#   Parser.collect_handprop( line, owner )
+#   Parser.collect_handprop( line, owner, hand )
 #   Parser.collect_backdrop( line )
-#   Parser.search_prop( line )
-#   Parser.collect_prop( line, name )
 #   Parser.new_stagehand( prop )
 #   Parser.parse_stagehand( name, text, qscriptkey, reportkey )
 #   Parser.add_note( line )
-#   Parser.add_fog( text )
+#   Parser.add_todo( line )
 #   Parser.add_error_note( line )
 #   Parser.change_role_player( role, old_player, player )
 #   Parser.change_role_hand( role, old_hand, hand )
@@ -1716,34 +1822,59 @@ end
 #   Parser.print_unknown_line( line )
 #   Parser.parse_section( line )
 #   Parser.parse_hand( text )
-#   Parser.parse_lines( filename, lines )
+#   Parser.parse_spot( text )
+#   Parser.parse_fog( text )
+#   Parser.parse_lines( filename, lines, version )
 class Parser
+  # map simple wiki tag to qscript
   SIMPLE_MAP = {
     '%AMB%' => [ 'ambience', 'Ambie', 'Ambience' ],
-    '%ATT%' => [ 'note', 'Note' ],
-    # '%MIX%' => [ 'note', 'Note' ],
-    '###' => [ 'note', 'Note' ],
-    '%LIG%' => [ 'light', 'Light', 'Light' ],
     '%MUS%' => [ 'ambience', 'Ambie', 'Ambience' ],
     '%SND%' => [ 'sound', 'Sound', 'Sound' ],
-    '%VID%' => [ 'video', 'Video', 'Video' ]
+    '%PRE%' => [ 'sound', 'Sound', 'Sound' ],
+    '%VID%' => [ 'video', 'Video', 'Video' ],
+    '%LIG%' => [ 'light', 'Light', 'Light' ],
+    '%ATT%' => [ 'note', 'Note' ],
+    # '%MIX%' => [ 'note', 'Note' ],
+    '###' => [ 'note', 'Note' ]
   }.freeze
+  # map wiki tag with role to qscript
   ROLE_MAP = {
     '%ACT%' => [ 'action', 'Actio' ]
   }.freeze
-  FRONTPROP_NAMES = [ 'FrontProp', 'frontProp', 'FroP' ].freeze
-  SECONDPROP_NAMES = [ 'SecondLevelProp', 'secondLevelProp', 'SecP' ].freeze
-  JUSTPROP_NAMES = [ 'HandProp', 'just handProp', 'JHanP' ].freeze
-  HANDPROP_NAMES = [ 'HandProp', 'handProp', 'HanP' ].freeze
-  PERSPROP_NAMES = [ 'PersonalProp', 'personalProp', 'PerP' ].freeze
-  JUSTPERS_NAMES = [ 'PersonalProp', 'just personalProp', 'JPerP' ].freeze
-  BACKDROP_FIELDS = [ 'Left', 'Middle', 'Right' ].freeze
-  REPORT_KEYS = {
-    'FrontProp' => 'FroP',
-    'SecondLevelProp' => 'SecP',
-    'HandProp' => 'HanP',
-    'PersonalProp' => 'PerP'
+  # names for prop types
+  PROP_NAMES = {
+    'FrontProp' => [ 'FrontProp', 'frontProp', 'FroP' ],
+    'SecondLevelProp' => [ 'SecondLevelProp', 'secondLevelProp', 'SecP' ],
+    'PersonalProp' => [ 'PersonalProp', 'personalProp', 'PerP' ],
+    'HandProp' => [ 'HandProp', 'handProp', 'HanP' ],
+    'TechProp' => [ 'TechProp', 'handProp', 'HanP' ]
   }.freeze
+  # names for FrontProp items
+  FRONTPROP_NAMES = PROP_NAMES[ 'FrontProp' ].freeze
+  # names for SecondLevelProp items
+  SECONDPROP_NAMES = PROP_NAMES[ 'SecondLevelProp' ].freeze
+  # names for PersonalProp items
+  PERSPROP_NAMES = PROP_NAMES[ 'PersonalProp' ].freeze
+  # names for HandProp items
+  HANDPROP_NAMES = PROP_NAMES[ 'HandProp' ].freeze
+  # names for TechProp PROP_NAMES
+  TECHPROP_NAMES = PROP_NAMES[ 'TechProp' ].freeze
+  # names for just prop types
+  JUST_NAMES = {
+    'PersonalProp' => [ 'PersonalProp', 'just personalProp', 'JPerP' ],
+    'HandProp' => [ 'HandProp', 'just handProp', 'JHanP' ],
+    'TechProp' => [ 'TechProp', 'just handProp', 'JHanP' ]
+  }.freeze
+  # names for just personalProp items
+  JUSTPERS_NAMES = JUST_NAMES[ 'PersonalProp' ].freeze
+  # names for just handProp items
+  JUSTPROP_NAMES = JUST_NAMES[ 'HandProp' ].freeze
+  # names for just handProp items
+  JUSTTECH_NAMES = JUST_NAMES[ 'TechProp' ].freeze
+  # name suffix for backdrops
+  BACKDROP_FIELDS = [ 'Left', 'Middle', 'Right' ].freeze
+  # map extra <tag> to prop type
   ITEM_TAGS = {
     'fp' => 'FrontProp',
     'pr' => 'FrontProp', # Backward compatible
@@ -1751,12 +1882,15 @@ class Parser
     '2nd' => 'SecondLevelProp', # Backward compatible
     'pp' => 'PersonalProp',
     'hp' => 'HandProp',
-    'tec' => 'HandProp',
-    'sfx' => 'HandProp'
+    'tec' => 'TechProp',
+    'sfx' => 'TechProp'
   }.freeze
 
+  # store object
   attr_reader :store
+  # qscript object
   attr_reader :qscript
+  # report object
   attr_reader :report
 
   def initialize( store, qscript, report )
@@ -1766,6 +1900,8 @@ class Parser
     @backdrops = []
     @scene_props = {}
     @scene_props_hands = {}
+    @scene_props_roles = {}
+    @scene_props_names = {}
     @setting = ''
   end
 
@@ -1796,10 +1932,10 @@ class Parser
     @report.puts2_key( 'Curtn', text )
     case text
     when 'open', 'close'
-      add_note( "TODO: same curtain state: #{text}" ) \
+      add_todo( "same curtain state: #{text}" ) \
         if text == @store.collection[ 'curtain' ]
     else
-      add_note( "TODO: unknown curtain state: #{text}" )
+      add_todo( "unknown curtain state: #{text}" )
     end
     @store.collection[ 'curtain' ] = text
   end
@@ -1831,9 +1967,11 @@ class Parser
       @report.html_p( [ 'Pers+', [ role( name ), key ], actor( val ) ] )
     end
     val = @store.collection[ 'role_puppets' ][ name ]
-    p [ 'list_one_person', name, val ]
-    @qscript.puts_key( 'puppet+', name, val )
-    @report.puts2_key( 'Pupp+', role( name ), puppet( val ) )
+    unless val.nil?
+      p [ 'list_one_person', name, val ]
+      @qscript.puts_key( 'puppet+', name, val )
+      @report.puts2_key( 'Pupp+', role( name ), puppet( val ) )
+    end
     clothing = @store.collection[ 'role_clothes' ][ name ]
     return if clothing.nil?
 
@@ -1860,7 +1998,8 @@ class Parser
 
       # remove_owned_prop( prop, name, h[ :names ] )
       storekey, qscriptkey, reportkey = h[ :names ]
-      @qscript.puts_key( qscriptkey + '-', name, prop )
+      tprop = @store.items[ storekey ][ prop ][ :name ]
+      @qscript.puts_key( qscriptkey + '-', name, tprop )
       @report.puts2_key(
         reportkey + '-', role( name ), tname( storekey, prop )
       )
@@ -1898,6 +2037,7 @@ class Parser
 
   def drop_person( name )
     @qscript.puts ''
+    drop_person_props( name )
     @store.collection[ 'Role' ][ name ].each_key do |what|
       @qscript.puts "\tperson- \"#{name}\".#{what}"
       @report.html_p( [ 'Pers-', [ name, what ] ] )
@@ -1905,13 +2045,16 @@ class Parser
         'Role', 'Pers-', name, [ [ name, what ] ]
       )
       player = @store.collection[ 'Role' ][ name ][ what ]
+      next if player == 'None'
+
       @store.timeframe.add_list_text(
         'Actor', 'Pers-', player, [ [ name, what ] ]
       )
     end
-    drop_clothing( name )
-    drop_person_props( name )
-    drop_puppet( name )
+    clothing = @store.collection[ 'role_clothes' ][ name ]
+    drop_clothing( name ) unless clothing.nil?
+    puppet = @store.collection[ 'role_puppets' ][ name ]
+    drop_puppet( name ) unless puppet.nil?
   end
 
   def list_one_person2( name )
@@ -1980,8 +2123,8 @@ class Parser
     #   return
     # end
     @store.add_role( role, list )
-    add_note( check_actor( list[ 0 ] ) )
-    add_note( check_actor( list[ 1 ] ) )
+    add_todo( check_actor( list[ 0 ] ) )
+    add_todo( check_actor( list[ 1 ] ) )
     list_one_person( role )
   end
 
@@ -2005,12 +2148,36 @@ class Parser
     result
   end
 
+  def header_single_prop( prop, hands, type )
+    if type.nil?
+      add_todo( "Type of Prop '#{prop}' unknown." )
+      return
+    end
+
+    kprop = prop.downcase
+    @scene_props[ kprop ] = 0
+    @scene_props_names[ kprop ] = PROP_NAMES[ type ]
+    @scene_props_hands[ kprop ] = hands
+    @scene_props_roles[ kprop ] = nil
+    @store.add_item( type, kprop, hands: hands, text: prop )
+    hands.each do |hand|
+      next if hand == 'None'
+
+      @store.add_item( 'Actor', hand, prop: kprop, stagehand: true )
+      reportkey = PROP_NAMES[ type ][ 2 ]
+      next if reportkey.nil?
+
+      @store.timeframe.add_list_text(
+        'Actor', reportkey, hand, [ actor( hand ), tname( type, kprop ) ]
+      )
+    end
+  end
+
   def parse_single_prop( line, key, type )
     line.scan( /<#{key}>(#{MATCH_SNAME})<\/#{key}>/i ) do |m|
       next if m.empty?
 
       m.each do |prop|
-        @scene_props[ prop ] = 0
         handtext = line.scan( /[(]([^)]*)[)]/ )
         hands =
           if handtext.empty?
@@ -2020,19 +2187,7 @@ class Parser
             handtext[ 0 ][ 0 ].split( /, */ )
           end
         p [ 'parse_single_prop', hands ]
-        @scene_props_hands[ prop ] = hands
-        @store.add_item( type, prop, hands: hands )
-        hands.each do |hand|
-          next if hand == 'None'
-
-          @store.add_item( 'Actor', hand, prop: prop, stagehand: true )
-          reportkey = REPORT_KEYS[ type ]
-          next if reportkey.nil?
-
-          @store.timeframe.add_list_text(
-            'Actor', reportkey, hand, [ actor( hand ), tname( type, prop ) ]
-          )
-        end
+        header_single_prop( prop, hands, type )
       end
     end
   end
@@ -2072,9 +2227,65 @@ class Parser
     # list2[ 4 ] = list2[ 4 ].split( ',' ).map( &:strip )
     list = merge_role( role, list2[ 2 .. -1 ] )
     @store.add_role( role, list )
-    add_note( @store.check_actor( list[ 0 ] ) )
-    add_note( @store.check_actor( list[ 1 ] ) )
+    {
+      1 => 'player',
+      2 => 'hands',
+      3 => 'voice',
+      4 => 'puppet',
+      5 => 'clothing'
+    }.each_pair do |i, type|
+      next if list[ i ] != ''
+
+      add_todo(
+        @store.error_message( "Missing name for #{type} on role '#{role}'" )
+      )
+    end
+    add_todo( @store.check_actor( list[ 0 ] ) )
+    add_todo( @store.check_actor( list[ 1 ] ) )
     list_one_person( role )
+  end
+
+  def split_dokuwiki_table( line )
+    line.split( '|' )[ 1 .. -1 ].map( &:strip )
+  end
+
+  def parse_table_prop( line )
+    list = split_dokuwiki_table( line )
+    hands = list[ 1 ].split( /, */ )
+    prop = list[ 0 ].sub( /^[^>]*>/, '' ).sub( /<[^<]*$/, '' ).downcase
+    found = nil
+    ITEM_TAGS.each_pair do |tag, type|
+      found = type if list[ 0 ] =~ /<#{tag}>/
+    end
+    header_single_prop( prop, hands, found )
+    # @setting << "\n" + list[ 0 ] + ' ' + list[ 2 ]
+  end
+
+  def parse_table_backdrop( line )
+    list = split_dokuwiki_table( line )
+    case list[ 0 ]
+    when /^[A-Z][a-z]*:/
+      parse_single_backdrop( list[ 0 ] )
+    else
+      @setting << "\n" + line
+      parse_table_prop( line )
+    end
+  end
+
+  def parse_table_all( line )
+    case @section
+    when 'Role'
+      parse_table_role( line )
+    when 'Stage setup'
+      parse_table_prop( line )
+    when 'Backdrop'
+      parse_table_backdrop( line )
+    when 'Setting'
+      @setting << "\n" + line
+    when 'On 2nd rail', 'On playrail', 'Hand props', 'Special effects'
+      parse_table_prop( line )
+    when 'PreRec'
+    end
   end
 
   def parse_puppets( line )
@@ -2129,103 +2340,190 @@ class Parser
 
   def add_single_prop( prop, names )
     storekey, qscriptkey, reportkey = names
+    kprop = prop.downcase
     @qscript.puts_key_token( qscriptkey, '+', prop )
     @report.puts2_key_token( reportkey, '+', prop )
-    @store.add_item( storekey, prop, type: names[ 0 ], hands: [], names: names )
-    @store.count( storekey, prop )
-    @store.timeframe.add( storekey, prop )
-    @store.timeframe.add_list( storekey, reportkey, '+', prop )
+    @store.add_item(
+      storekey, kprop, type: names[ 0 ], hands: [], text: prop,
+      names: names
+    )
+    @store.count( storekey, kprop )
+    @store.timeframe.add( storekey, kprop )
+    @store.timeframe.add_list( storekey, reportkey, '+', kprop )
+    @scene_props_names[ kprop ] = names
+  end
+
+  def add_just_prop( prop, names )
+    storekey, qscriptkey, reportkey = names
+    kprop = prop.downcase
+    @store.count( storekey, kprop )
+    @store.timeframe.add_once( storekey, kprop )
+    @store.timeframe.add_list( storekey, reportkey, '', kprop )
+    @store.add_item( storekey, kprop, hands: [], text: prop )
+    @qscript.puts_key( qscriptkey, prop )
+    @report.puts2_key( reportkey, prop )
+    @scene_props_names[ kprop ] = names
+  end
+
+  def count_single_prop( prop, names )
+    storekey, qscriptkey, reportkey = names
+    kprop = prop.downcase
+    @store.count( storekey, kprop )
+    @qscript.puts_key_token( qscriptkey, '=', prop )
+    @report.puts2_key_token( reportkey, '=', prop )
+    @store.timeframe.add( storekey, kprop )
+    @store.timeframe.add_list( storekey, reportkey, '=', kprop )
+  end
+
+  def drop_single_prop( prop, names )
+    storekey, qscriptkey, reportkey = names
+    kprop = prop.downcase
+    @qscript.puts_key_token( qscriptkey, '-', prop )
+    @report.puts2_key_token( reportkey, '-', prop )
+    @store.timeframe.add( storekey, kprop )
+    @store.timeframe.add_list( storekey, reportkey, '-', kprop )
   end
 
   def add_owned_prop( prop, owner, names )
     storekey, qscriptkey, reportkey = names
     ownerkey = storekey + '_owner'
+    kprop = prop.downcase
     @qscript.puts_key_token( qscriptkey, '+', owner, prop )
-    @report.puts2_key_token(
-      reportkey, '+', role( owner ), tname( names[ 0 ], prop )
-    )
     @store.add_item(
-      storekey, prop,
-      type: names[ 0 ], name: owner, hands: owner, names: names
+      storekey, kprop,
+      type: names[ 0 ], name: owner, hands: owner, text: prop,
+      names: names
     )
-    @store.count( storekey, prop )
-    @store.add( ownerkey, prop, owner )
-    @store.timeframe.add_once( storekey, prop )
+    @store.count( storekey, kprop )
+    @store.add( ownerkey, kprop, owner )
+    @store.timeframe.add_once( storekey, kprop )
+    @report.puts2_key_token(
+      reportkey, '+', role( owner ), tname( names[ 0 ], kprop )
+    )
     puppet = @store.collection[ 'role_puppets' ][ owner ]
+    hands = @scene_props_hands[ kprop ]
     @store.timeframe.add_prop(
-      storekey, reportkey, '+', [ prop, owner, puppet ]
+      storekey, reportkey, '+', [ kprop, owner, hands, puppet ]
     )
     @store.collection[ 'owned_props' ][ owner ] = [] \
       unless @store.collection[ 'owned_props' ].key?( owner )
     @store.collection[ 'owned_props' ][ owner ].push(
-      type: names[ 0 ], name: prop, names: names
+      type: names[ 0 ], name: kprop, names: names
     )
+    @scene_props_names[ kprop ] = names
   end
 
   def remove_owned_prop( prop, owner, names )
     p [ 'remove_owned_prop', prop, owner, names ]
     storekey, qscriptkey, reportkey = names
     ownerkey = storekey + '_owner'
-    return if qscriptkey =~ /^just /
+    kprop = prop.downcase
+    tprop = @store.items[ storekey ][ kprop ][ :name ]
+    # return if qscriptkey =~ /^just /
 
-    @qscript.puts_key_token( qscriptkey, '-', owner, prop )
+    @qscript.puts_key_token( qscriptkey, '-', owner, tprop )
     @report.puts2_key(
-      reportkey + '-', role( owner ), tname( storekey, prop )
+      reportkey + '-', role( owner ), tname( storekey, kprop )
     )
-    @store.count( storekey, prop )
-    @store.add( ownerkey, prop, nil )
+    @store.count( storekey, kprop )
+    @store.add( ownerkey, kprop, nil )
     puppet = @store.collection[ 'role_puppets' ][ owner ]
+    hands = @scene_props_hands[ kprop ]
     @store.timeframe.add_prop(
-      storekey, reportkey, '-', [ prop, owner, puppet ]
+      storekey, reportkey, '-', [ kprop, owner, hands, puppet ]
     )
     @store.collection[ 'owned_props' ][ owner ].delete(
-      type: names[ 0 ], name: prop, names: names
+      type: names[ 0 ], name: kprop, names: names
     )
-  end
-
-  def count_single_prop( prop, names )
-    storekey, qscriptkey, reportkey = names
-    @store.count( storekey, prop )
-    @qscript.puts_key_token( qscriptkey, '=', prop )
-    @report.puts2_key_token( reportkey, '=', prop )
-    @store.timeframe.add( storekey, prop )
-    @store.timeframe.add_list( storekey, reportkey, '=', prop )
   end
 
   def count_owned_prop( prop, owner, names )
+    # p [ 'count_owned_prop', prop, owner, names ]
+    p [ 'count_owned_prop', prop, owner, names ]
     storekey, qscriptkey, reportkey = names
     ownerkey = storekey + '_owner'
-    old = @store.collection[ ownerkey ][ prop ]
+    kprop = prop.downcase
+    old = @store.collection[ ownerkey ][ kprop ]
     if old == owner
-      @store.count( storekey, prop )
+      @store.count( storekey, kprop )
       @qscript.puts_key_token( qscriptkey, '=', owner, prop )
       @report.puts2_key_token( reportkey, '=', owner, prop )
       puppet = @store.collection[ 'role_puppets' ][ owner ]
+      hands = @scene_props_hands[ kprop ]
       @store.timeframe.add_prop(
-        storekey, reportkey, '=', [ prop, owner, puppet ]
+        storekey, reportkey, '=', [ kprop, owner, hands, puppet ]
       )
+      @scene_props_names[ kprop ] = names
       return
     end
-    remove_owned_prop( prop, old, names ) unless old.nil?
+    old_names =
+      if @scene_props_names.key?( kprop )
+        @scene_props_names[ kprop ]
+      else
+        names
+      end
+    remove_owned_prop( prop, old, old_names ) unless old.nil?
     add_owned_prop( prop, owner, names )
   end
 
-  def add_scene_prop( prop )
-    if @scene_props.key?( prop )
-      @scene_props[ prop ] += 1
+  def remove_scene_prop( prop )
+p [ 'remove_scene_prop', prop, @scene_props_names[ prop ] ]
+    kprop = prop.downcase
+    storekey = @scene_props_names[ kprop ][ 0 ]
+    case storekey
+    when 'HandProp', 'TechProp'
+      # storekey, qscriptkey, reportkey = @scene_props_names[ kprop ]
+      # ownerkey = storekey + '_owner'
+      # owner = @store.collection[ ownerkey ][ prop ]
+      # also in drop_person()
+      # remove_owned_prop( prop, owner, @scene_props_names[ kprop ] )
+    when 'PersonalProp'
+      # storekey, qscriptkey, reportkey = @scene_props_names[ kprop ]
+      # ownerkey = storekey + '_owner'
+      # owner = @store.collection[ ownerkey ][ prop ]
+      # also in drop_person()
+      # remove_owned_prop( prop, owner, @scene_props_names[ kprop ] )
+    when nil
+      p [ 'remove_scene_prop', prop, @scene_props_names[ kprop ] ]
     else
-      add_note( "TODO: unknown Prop '#{prop}'" )
-      @scene_props[ prop ] = 1
+      drop_single_prop( prop, @scene_props_names[ kprop ] )
     end
+  end
+
+  def missing_scene_prop( prop )
+    kprop = prop.downcase
+    storekey = @scene_props_names[ kprop ][ 0 ]
+    add_todo( "#{storekey} unused '#{prop}'" )
+    case storekey
+    when 'HandProp', 'TechProp'
+      add_just_prop( prop, JUST_NAMES[ storekey ] )
+    when 'PersonalProp'
+      ownerkey = storekey + '_owner'
+      owner = @store.collection[ ownerkey ][ kprop ]
+      add_owned_prop( prop, owner, @scene_props_names[ kprop ] )
+    else
+      add_single_prop( prop, @scene_props_names[ kprop ] )
+    end
+  end
+
+  def add_scene_prop( prop )
+    kprop = prop.downcase
+    if @scene_props.key?( kprop )
+      @scene_props[ kprop ] += 1
+      return
+    end
+    add_todo( "unknown Prop '#{prop}'" )
+    @scene_props[ kprop ] = 1
   end
 
   def collect_single_prop( prop, names )
     add_scene_prop( prop )
+    kprop = prop.downcase
     storekey = names[ 0 ] + '_count'
     @store.collection[ storekey ] = {} unless @store.collection.key?( storekey )
-    unless @store.collection[ storekey ].key?( prop )
+    if @scene_props[ kprop ] == 1
       add_single_prop( prop, names )
-      # add_note( "TODO: #{names[ 0 ]} missing in header '#{prop}'" )
+      # add_todo( "#{names[ 0 ]} missing in header '#{prop}'" )
       return
     end
     count_single_prop( prop, names )
@@ -2233,29 +2531,27 @@ class Parser
 
   def collect_owned_prop( prop, owner, names )
     add_scene_prop( prop )
-    storekey = names[ 0 ] + '_count'
-    unless @store.collection[ storekey ].key?( prop )
-      add_owned_prop( prop, owner, names )
-      return
-    end
+    p [ 'collect_owned_prop', prop, owner, names ]
     count_owned_prop( prop, owner, names )
   end
 
   def collect_just_prop( prop, names )
-    add_scene_prop( prop )
-    storekey, qscriptkey, reportkey = names
+    storekey = names[ 0 ]
     ownerkey = storekey + '_owner'
-    p [ 'collect_just_prop', ownerkey, @scene_props_hands ]
+    add_scene_prop( prop )
+    kprop = prop.downcase
+    p [
+      'collect_just_prop',
+      prop, ownerkey,
+      @scene_props_hands[ kprop ],
+      @scene_props_names[ kprop ],
+      @store.collection[ ownerkey ][ kprop ]
+    ]
     if @store.collection.key?( ownerkey )
-      old = @store.collection[ ownerkey ][ prop ]
-      remove_owned_prop( prop, old, names ) unless old.nil?
+      old = @store.collection[ ownerkey ][ kprop ]
+      remove_owned_prop( prop, old, @scene_props_names[ kprop ] ) unless old.nil?
     end
-    @store.count( storekey, prop )
-    @store.timeframe.add_once( storekey, prop )
-    @store.timeframe.add_list( storekey, reportkey, '', prop )
-    @store.add_item( storekey, prop, hands: [] )
-    @qscript.puts_key( qscriptkey, prop )
-    @report.puts2_key( reportkey, prop )
+    add_just_prop( prop, names )
   end
 
   def search_simple_props( line, suffix, tag )
@@ -2286,6 +2582,8 @@ class Parser
 
   def search_handprop( line )
     props = []
+    return props if line.nil?
+
     # p ['search_handprop', line ]
     suffix_props( line, 'hp' ).each do |prop|
       props.push( prop )
@@ -2302,11 +2600,16 @@ class Parser
         props.push( prop )
       end
     end
+
+    props.concat( search_simple_props( line, 'pr', 'fp' ) )
+    props.concat( search_simple_props( line, '2nd', 'sp' ) )
     props
   end
 
-  def collect_handprop( line, owner )
+  def collect_handprop( line, owner, hand )
     props = []
+    return props if line.nil?
+
     # p ['collect_handprop', line, owner ]
     suffix_props( line, 'hp' ).each do |prop|
       props.push( prop )
@@ -2328,7 +2631,7 @@ class Parser
       end
     end
 
-    [ 'hp', 'sfx', 'tec' ].each do |key|
+    [ 'hp' ].each do |key|
       tagged_props( line, key ).each do |prop|
         props.push( prop )
         unless owner.nil?
@@ -2338,6 +2641,20 @@ class Parser
         collect_just_prop( prop, JUSTPROP_NAMES )
       end
     end
+
+    [ 'sfx', 'tec' ].each do |key|
+      tagged_props( line, key ).each do |prop|
+        props.push( prop )
+        unless owner.nil?
+          collect_owned_prop( prop, owner, TECHPROP_NAMES )
+          next
+        end
+        collect_just_prop( prop, JUSTTECH_NAMES )
+      end
+    end
+
+    props.concat( collect_simple_props( line, 'pr', 'fp', FRONTPROP_NAMES ) )
+    props.concat( collect_simple_props( line, '2nd', 'sp', SECONDPROP_NAMES ) )
     props
   end
 
@@ -2351,24 +2668,6 @@ class Parser
       end
       add_backdrop_list( list )
     end
-  end
-
-  def search_prop( line )
-    return [] if line.nil?
-
-    props = search_handprop( line )
-    props.concat( search_simple_props( line, 'pr', 'fp' ) )
-    props.concat( search_simple_props( line, '2nd', 'sp' ) )
-    props
-  end
-
-  def collect_prop( line, name )
-    return [] if line.nil?
-
-    props = collect_handprop( line, name )
-    props.concat( collect_simple_props( line, 'pr', 'fp', FRONTPROP_NAMES ) )
-    props.concat( collect_simple_props( line, '2nd', 'sp', SECONDPROP_NAMES ) )
-    props
   end
 
   def new_stagehand( prop )
@@ -2394,7 +2693,7 @@ class Parser
       when /^#{key} /
         line.strip!
         text = line.sub( /^#{key}  */, '' )
-        collect_prop( text, nil )
+        collect_handprop( text, nil, nil )
         if type.nil?
           storekey = "#{qscript_key}s"
         else
@@ -2428,18 +2727,19 @@ class Parser
     @qscript.puts ''
   end
 
-  def add_fog( text )
-    hand = new_stagehand( 'fog' )
-    @store.add_item( 'Actor', hand, effect: text, stagehand: true )
-    @store.add_item( 'Effect', text, stagehand: hand )
-    add_note( @store.check_actor( hand ) )
-    parse_stagehand( hand, text, 'effect', 'Effct' )
-    @store.timeframe.add( 'Effect', text )
-    @store.timeframe.add_list_text( 'Effect', 'Effct', text, [ hand, text ] )
+  def add_todo( line )
+    return if line.nil?
+
+    @qscript.puts_key( 'todo', line )
+    @report.puts2_key( 'Todo', line )
+    @qscript.puts ''
+    @store.add_item( 'Todo', line, text: line )
+    @store.timeframe.add( 'Todo', line )
+    @store.timeframe.add_list( 'Todo', 'Todo', '', line )
   end
 
   def add_error_note( line )
-    add_note( line )
+    add_todo( line )
     STDERR.puts line
   end
 
@@ -2449,7 +2749,7 @@ class Parser
     return if old_player == player
 
     add_error_note(
-      "INFO: Player changed #{role}: #{old_player} -> #{player}"
+      "INFO: Player changed for '#{role}': '#{old_player}' -> '#{player}'"
     )
   end
 
@@ -2459,7 +2759,7 @@ class Parser
     return if old_hand == hand
 
     add_error_note(
-      "INFO: Hands changed #{role}: #{old_hand} -> #{hand}"
+      "INFO: Hands changed for '#{role}': '#{old_hand}' -> '#{hand}'"
     )
   end
 
@@ -2469,7 +2769,7 @@ class Parser
     return if old_voice == voice
 
     add_error_note(
-      "INFO: Voice changed #{role}: #{old_voice} -> #{voice}"
+      "INFO: Voice changed for '#{role}': '#{old_voice}' -> '#{voice}'"
     )
   end
 
@@ -2479,7 +2779,7 @@ class Parser
     return if old_puppet == puppet
 
     add_error_note(
-      "INFO: Puppet changed #{role}: #{old_puppet} -> #{puppet}"
+      "INFO: Puppet changed for '#{role}': '#{old_puppet}' -> '#{puppet}'"
     )
   end
 
@@ -2489,7 +2789,7 @@ class Parser
     return if old_clothing == clothing
 
     add_error_note(
-      "INFO: Clothing changed #{role}: #{old_clothing} -> #{clothing}"
+      "INFO: Clothing changed for '#{role}': '#{old_clothing}' -> '#{clothing}'"
     )
   end
 
@@ -2531,7 +2831,7 @@ class Parser
 
     p [ 'unknown_person', name ]
     if @section != 'Puppets:'
-      add_error_note( "TODO: unknown Role: '#{name}'" )
+      add_error_note( "unknown Role: '#{name}'" )
       STDERR.puts( @store.collection[ 'Role' ][ name ] )
     end
     if @store.collection[ 'person' ].key?( name )
@@ -2545,14 +2845,14 @@ class Parser
         @store.collection[ 'role_clothes' ][ name ]
       ]
       @store.add_role( name, list )
-      add_note( @store.check_actor( list[ 0 ] ) )
-      add_note( @store.check_actor( list[ 1 ] ) )
+      add_todo( @store.check_actor( list[ 0 ] ) )
+      add_todo( @store.check_actor( list[ 1 ] ) )
       list_one_person2( name )
     else
       list = [ nil, nil, nil, nil, nil ]
       @store.add_role( name, list )
-      add_note( @store.check_actor( list[ 0 ] ) )
-      add_note( @store.check_actor( list[ 1 ] ) )
+      add_todo( @store.check_actor( list[ 0 ] ) )
+      add_todo( @store.check_actor( list[ 1 ] ) )
       list_one_person( name )
     end
   end
@@ -2566,7 +2866,7 @@ class Parser
 
   def print_role( name, qscript_key, result_key, text )
     unknown_person( name )
-    collect_prop( text, name )
+    collect_handprop( text, name, nil )
     @qscript.puts_key( qscript_key, name, text )
     @report.puts2_key( result_key, name, text )
     @store.timeframe.add_list_text( 'Role', result_key, name, [ name, text ] )
@@ -2625,6 +2925,7 @@ class Parser
 
   def parse_role_name( text )
     rest = text.gsub( / *\[[^\]]*\]/, '' )
+    rest.gsub!( /^The /, '' )
     list = []
     while /^#{MATCH_NAME}( and |, *)/ =~ rest
       name, rest = rest.split( / and |, */, 2 )
@@ -2635,7 +2936,7 @@ class Parser
     when /^#{MATCH_NAME}[:]*$/
       list.push( name.sub( ':', '' ) )
     else
-      add_error_note( "TODO: Error in Role: #{name}, #{text}" )
+      add_error_note( "Error in Role: '#{name}', #{text}" )
     end
     # p [ 'parse_role_name', list, text ]
     [ list, text ]
@@ -2667,8 +2968,8 @@ class Parser
 
   def print_spoken( name, comment, text )
     unknown_person( name )
-    collect_prop( comment, name )
-    collect_prop( text, name )
+    collect_handprop( comment, name, nil )
+    collect_handprop( text, name, nil )
     case text
     when /^".*"$/
       text = text[ 1 .. -2 ]
@@ -2706,26 +3007,32 @@ class Parser
   def replace_text( line )
     line.strip!
     $subs.each_pair do |pattern, text|
-      line.sub!( /#{pattern}/, text )
+      found = line.gsub!( /#{pattern}/, text )
+      next if found.nil?
+
+      $subs_count[ pattern ] += 1
     end
     line
   end
 
   def close_scene
-    @store.timeframe.list( 'Role' ).each do |role|
-      drop_person( role )
-    end
     # pp @scene_props
     @scene_props.each_pair do |prop, count|
-      next if count > 0
-
-      add_note( "TODO: Prop unused '#{prop}'" )
+      storekey = @scene_props_names[ prop ][ 0 ]
+      tprop = @store.items[ storekey ][ prop ][ :name ]
+      missing_scene_prop( tprop ) if count.zero?
+      remove_scene_prop( tprop )
+    end
+    @store.timeframe.list( 'Role' ).each do |role|
+      drop_person( role )
     end
     @qscript.puts '}'
     @qscript.puts ''
     @store.timeframe.add_table( 'props_hands', @scene_props_hands )
     @scene_props = {}
     @scene_props_hands = {}
+    @scene_props_roles = {}
+    @scene_props_names = {}
     @setting = ''
   end
 
@@ -2735,7 +3042,34 @@ class Parser
          /:events:pps:script:/, '== DIALOGUE =='
       return
     end
-    add_error_note( "TODO: unknown line '#{line}'" )
+    add_error_note( "unknown line '#{line}'" )
+  end
+
+  def parse_table_section( line )
+    case line
+    when /^[\^] *Role /
+      @section = 'Role'
+      return true
+    when /^[\^] *Backdrop /
+      @section = 'Backdrop'
+      return true
+    when /^[\^] *On 2nd rail /
+      @section = 'On 2nd rail'
+      return true
+    when /^[\^] *On playrail /
+      @section = 'On playrail'
+      return true
+    when /^[\^] *Hand props /
+      @section = 'Hand props'
+      return true
+    when /^[\^] *Special effects /
+      @section = 'Special effects'
+      return true
+    when /^[\^] *PreRec /
+      @section = 'PreRec'
+      return true
+    end
+    false
   end
 
   def parse_section( line )
@@ -2744,6 +3078,7 @@ class Parser
       return true # ignore navigation
     when /^==== / # title note
       add_note( line )
+      add_note( "INFO: version date #{@version}" )
       return true
     when /^      [*] / # head data
       parse_section_data( @section, line )
@@ -2758,14 +3093,17 @@ class Parser
     when '== DIALOGUE =='
       @section = nil
       return true
-    when /^[\^] *Role /
-      @section = 'Role'
+    when /^[\^]/ # table head
+      parse_table_section( replace_text( line ) )
+      return true if @section.nil?
+
+      @qscript.puts "\t//" + line
       return true
     when /^\|/ # table data
       return true if @section.nil?
 
       @qscript.puts "\t//" + line
-      parse_table_role( replace_text( line ) )
+      parse_table_all( replace_text( line ) )
       return true
     when '----', '', '^Part^Time|'
       @section = nil
@@ -2777,32 +3115,103 @@ class Parser
       return false if @section == 'INTRO'
 
       p [ 'parse_section', @section, line ]
-      add_note( "TODO: unknown header in #{@section}: '#{line}'" )
+      add_todo( "unknown header in #{@section}: '#{line}'" )
     end
     false
   end
 
   def parse_hand( text )
-    props = search_prop( text )
+    #@store.timeframe.add( 'Stagehand', text )
+    p [ '%HND%0', text, @scene_props_names[ 'restraints' ] ]
+    props = search_handprop( text )
+    p [ '%HND%1', props, @scene_props_names[ 'restraints' ] ]
     props.each do |prop|
+      kprop = prop.downcase
       hands =
-        if @scene_props_hands.key?( prop )
-          @scene_props_hands[ prop ]
+        if @scene_props_hands.key?( kprop )
+          @scene_props_hands[ kprop ]
         else
-          [ new_stagehand( prop ) ]
+          [ new_stagehand( kprop ) ]
         end
-      p [ '%HND%', props, hands ]
+      p [ '%HND%', props, hands, @scene_props_names[ kprop ] ]
       hands.each do |hand|
-        @store.add_item( 'Actor', hand, prop: prop, stagehand: true )
-        add_note( @store.check_actor( hand ) )
-        # collect_prop( text, hand )
+        next if hand == 'None'
+
+        @store.add_item( 'Actor', hand, prop: kprop, stagehand: true )
+        #@store.timeframe.add_list_text( 'Actor', 'Stage', hand, [ hand, text ] )
+        add_todo( @store.check_actor( hand ) )
+        collect_handprop( text, nil, hand )
         parse_stagehand( hand, text, 'stagehand', 'Stage' )
+        #@store.add_item( 'Stagehand', text, stagehand: hand )
+        #@store.timeframe.add_list_text( 'Stagehand', 'Stage', text, [ hand, text ] )
       end
     end
   end
 
-  def parse_lines( filename, lines )
+  def parse_spot( text )
+    @store.timeframe.add( 'Effect', text )
+    props = search_handprop( text )
+    props.each do |prop|
+      kprop = prop.downcase
+      hands =
+        if @scene_props_hands.key?( kprop )
+          @scene_props_hands[ kprop ]
+        else
+          [ new_stagehand( kprop ) ]
+        end
+      p [ '%SPT%', props, hands ]
+      hands.each do |hand|
+        next if hand == 'None'
+
+        @store.add_item( 'Actor', hand, effect: kprop, stagehand: true )
+        #@store.timeframe.add_list_text( 'Actor', 'Effct', hand, [ hand, text ] )
+        add_todo( @store.check_actor( hand ) )
+        collect_handprop( text, nil, hand )
+        parse_stagehand( hand, text, 'effect', 'Effct' )
+        @store.add_item( 'Effect', text, stagehand: hand )
+        @store.timeframe.add_list_text( 'Effect', 'Effct', text, [ hand, text ] )
+      end
+    end
+  end
+
+  def parse_fog( text )
+    props = search_handprop( text )
+    props.each do |prop|
+      kprop = prop.downcase
+      hands =
+        if @scene_props_hands.key?( kprop )
+          @scene_props_hands[ kprop ]
+        else
+          [ new_stagehand( kprop ) ]
+        end
+      p [ '%FOG%', props, hands ]
+      hands.each do |hand|
+        next if hand == 'None'
+
+        @store.add_item( 'Actor', hand, effect: kprop, stagehand: true )
+        #@store.timeframe.add_list_text( 'Actor', 'Effct', hand, [ hand, text ] )
+        add_todo( @store.check_actor( hand ) )
+        collect_handprop( text, nil, hand )
+        parse_stagehand( hand, text, 'effect', 'Effct' )
+        @store.add_item( 'Effect', text, stagehand: hand )
+        @store.timeframe.add_list_text( 'Effect', 'Effct', text, [ hand, text ] )
+      end
+    end
+    return unless props.empty?
+
+    #TDOD: check if hands are set in header
+    hand = new_stagehand( 'fog' )
+    @store.add_item( 'Actor', hand, effect: text, stagehand: true )
+    add_todo( @store.check_actor( hand ) )
+    @store.add_item( 'Effect', text, stagehand: hand )
+    parse_stagehand( hand, text, 'effect', 'Effct' )
+    @store.timeframe.add( 'Effect', text )
+    @store.timeframe.add_list_text( 'Effect', 'Effct', text, [ hand, text ] )
+  end
+
+  def parse_lines( filename, lines, version )
     @section = nil
+    @version = version
     parse_title( filename )
     lines.each do |line|
       line.sub!( /\\\\$/, '' ) # remove DokuWiki linebreak
@@ -2816,8 +3225,12 @@ class Parser
       when /Backdrop_L/
         collect_backdrop( line )
         next
+      when /^Setting:/
+        @qscript.puts "\t//" + line
+        @setting << "\n" + replace_text( line )
+        next
       when /^%HND% Curtain - /
-        collect_prop( @setting, nil )
+        pp collect_handprop( @setting, nil, nil )
         @setting = ''
         # pp @scene_props
         curtain( line.sub( /^%HND% Curtain - */, '' ) )
@@ -2825,8 +3238,11 @@ class Parser
       when /^%HND% /
         parse_hand( line.sub( /^%HND% /, '' ) )
         next
+      when /^%SPT% /
+        parse_spot( line.sub( /^%SPT% /, '' ) )
+        next
       when /^%FOG% /
-        add_fog( line.sub( /^%FOG% /, '' ) )
+        parse_fog( line.sub( /^%FOG% /, '' ) )
         next
       when /^%MIX% /
         add_note( line )
@@ -2859,6 +3275,7 @@ end
 
 $roles_config = RolesConfig.new( ROLES_CONFIG_FILE )
 $subs = read_subs( SUBS_CONFIG_FILE )
+$subs_count = $subs.map { |k, v| [ k, 0 ] }.to_h
 $puppet_pool = read_subs( PUPPET_POOL_FILE )
 qscript = QScript.new
 timeframe = Timeframe.new( qscript )
@@ -2868,8 +3285,9 @@ parser = Parser.new( store, qscript, report )
 
 ARGV.each do |filename|
   STDERR.puts filename
+  version = File.stat( filename ).mtime.strftime( '%Y-%m-%d %H:%M' )
   lines = File.read( filename ).split( "\n" )
-  parser.parse_lines( filename, lines )
+  parser.parse_lines( filename, lines, version )
 end
 
 qscript.save( 'qscript.txt' )
@@ -2886,6 +3304,12 @@ html_clothes = File.read( HTML_HEADER_FILE )
 html_clothes << '<body>'
 html_clothes << clothes
 file_put_contents( 'clothes.html', html_clothes )
+
+$subs_count.each_pair do |pattern, count|
+  next unless count.zero?
+
+  puts "unused pattern: #{pattern}"
+end
 
 # pp parser.store.items[ 'FrontProp' ]
 # pp parser.store.items[ 'Backdrop' ]
