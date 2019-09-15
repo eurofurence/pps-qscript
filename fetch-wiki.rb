@@ -25,6 +25,7 @@ exit if user.nil?
 
 dokuwiki = DokuWiki::DokuWikiAccess.new( EFHOST )
 dokuwiki.login( 'ef25:events:pps:qscript', user, pass )
+dokuwiki.media_dir = 'media'
 
 # example paths:
 # ef25:events:pps:qscript
