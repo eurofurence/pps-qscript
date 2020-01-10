@@ -1,7 +1,7 @@
 #!/bin/sh
 LANG=de_DE.UTF-8
 export LANG
-cd /usr/home/dm/Hay/haskell || exit 65
+cd /usr/home/dm/Hay || exit 65
 set -e
 case "${1}" in
 auto)
@@ -13,9 +13,8 @@ make pre
 
 ./read-scene.rb scene*.wiki
 
-#set +e
-set -e
-../final_dinoex/PPSMoments qscript.txt test.tmp
+set +e
+final_dinoex/PPSMoments qscript.txt test.tmp
 set -e
 if diff -q test.tmp test.html
 then
@@ -51,6 +50,7 @@ echo "upload"
 case "${1}" in
 auto)
 	./upload-wiki.rb
+	# ./upload-wiki.rb actors/*.pdf
 	;;
 esac
 
