@@ -9,6 +9,7 @@
 
 require 'cgi'
 require 'json'
+require 'csv'
 require 'pp'
 
 $: << '.'
@@ -22,7 +23,11 @@ PUPPET_POOL_FILE = 'puppet_pool.csv'.freeze
 # general header for html output files
 HTML_HEADER_FILE = 'header.html'.freeze
 # output for actors to wiki lines
-WIKI_ACTORS = 'wiki_actors.json'.freeze
+WIKI_ACTORS_FILE = 'wiki_actors.json'.freeze
+# output for todo list
+TODO_LIST_FILE = 'todo-list.csv'.freeze
+# header for todo list
+TODO_LIST_HEADER = [ 'Scene', 'Category', 'Item' ].freeze
 # regular expression for matching names
 MATCH_NAME = '[A-Za-z0-9_-]+'.freeze
 # regular expression for matching names within a tag
@@ -122,9 +127,9 @@ def puppet( name )
   { type: 'Puppet', name: name }
 end
 
-# make a hash with name and Clothing type
+# make a hash with name and Costume type
 def clothing( name )
-  { type: 'Clothing', name: name }
+  { type: 'Costume', name: name }
 end
 
 # read patters for replacements from given file
@@ -290,10 +295,11 @@ class Timeframe
     'Roles' => 'Role',
     'Person' => 'Actor',
     'Puppets' => 'Puppet',
-    'Clothes' => 'Clothing',
+    'Costumes' => 'Costume',
     'Personal props' => 'PersonalProp',
     'Hand props' => 'HandProp',
     'Tech props' => 'TechProp',
+    'Special effect' => 'SpecialEffect',
     'Todos' => 'Todo'
   }.freeze
 
@@ -496,11 +502,12 @@ class Store
     'Role' => 8,
     'Actor' => 9,
     'Puppet' => 10,
-    'Clothing' => 11,
+    'Costume' => 11,
     'PersonalProp' => 12,
     'HandProp' => 13,
     'TechProp' => 13,
-    'Todo' => 14
+    'SpecialEffect' => 14,
+    'Todo' => 15
   }.freeze
   # list we will collect
   COLLECTION_FIELDS = [
@@ -512,6 +519,7 @@ class Store
     'PersonalProp_owner',
     'HandProp_owner',
     'TechProp_owner',
+    'SpecialEffect_owner',
     'stagehand',
     'todos'
   ].freeze
@@ -641,10 +649,10 @@ class Store
   end
 
   def check_puppet( role, name )
-    return nil unless @items[ 'Clothing' ].key?( name )
+    return nil unless @items[ 'Costume' ].key?( name )
 
     seen = {}
-    @items[ 'Clothing' ][ name ][ :list ].each do |item|
+    @items[ 'Costume' ][ name ][ :list ].each do |item|
       next if item[ :scene ] != @timeframe.timeframe
 
       seen[ :role ] = [] unless seen.key?( :role )
@@ -662,10 +670,10 @@ class Store
   end
 
   def check_clothing( puppet, name )
-    return nil unless @items[ 'Clothing' ].key?( name )
+    return nil unless @items[ 'Costume' ].key?( name )
 
     seen = {}
-    @items[ 'Clothing' ][ name ][ :list ].each do |item|
+    @items[ 'Costume' ][ name ][ :list ].each do |item|
       next if item[ :scene ] != @timeframe.timeframe
 
       seen[ :puppet ] = [] unless seen.key?( :puppet )
@@ -674,8 +682,8 @@ class Store
 
     if seen[ :puppet ].uniq.size > 1
       return error_message(
-        "Clothing for '#{puppet}' can't be set to '#{name}',",
-        "because it's already a Clothing",
+        "Costume for '#{puppet}' can't be set to '#{name}',",
+        "because it's already a Costume",
         "of puppet '#{seen[ :puppet ].join( ',' )}'"
       )
     end
@@ -768,15 +776,15 @@ class Store
     return nil if clothing.casecmp( 'none' ).zero?
 
     add( 'role_clothes', name, clothing )
-    add( 'Clothing', clothing, name )
-    @timeframe.add( 'Clothing', clothing )
+    add( 'Costume', clothing, name )
+    @timeframe.add( 'Costume', clothing )
     @timeframe.add_list_text( 'Role', 'Clth+', name, [ name, clothing ] )
     puppet = @collection[ 'role_puppets' ][ name ]
     @timeframe.add_list_text(
       'Puppet', 'Clth+', puppet, [ name, clothing ]
     )
     @timeframe.add_list_text(
-      'Clothing', 'Clth+', clothing, [ name, clothing ]
+      'Costume', 'Clth+', clothing, [ name, clothing ]
     )
     clothing
   end
@@ -790,7 +798,7 @@ class Store
       'Role', 'Clth-', role, [ role( role ), clothing( clothing ) ]
     )
     @timeframe.add_list_text(
-      'Clothing', 'Clth-', clothing, [ role( role ), clothing( clothing ) ]
+      'Costume', 'Clth-', clothing, [ role( role ), clothing( clothing ) ]
     )
     puppet = @collection[ 'role_puppets' ][ role ] if puppet.nil?
     return if puppet.nil?
@@ -822,7 +830,7 @@ class Store
     add_item( 'Puppet', puppet, role: name, clothing: clothing )
     return if clothing.nil?
 
-    add_item( 'Clothing', clothing, role: name, puppet: puppet )
+    add_item( 'Costume', clothing, role: name, puppet: puppet )
   end
 
   # add a role
@@ -886,7 +894,7 @@ end
 #   Report.list( hash, type )
 #   Report.catalog_item
 #   Report.puts_timeframe
-#   Report.list_builds
+#   Report.list_builds2
 #   Report.hand_props_actors( scene, prop_type )
 #   Report.list_hand_props
 #   Report.people_assignments( listname, person )
@@ -894,12 +902,13 @@ end
 #   Report.merge_assignments_role( assignments, actor, entry )
 #   Report.list_people_assignments
 #   Report.list_people_people( key )
+#   Report.list_people_scene( key, table )
 #   Report.list_cast
 #   Report.table_caption( title )
 #   Report.html_table( table, title, tag = '' )
-#   Report.html_table_r( table, title, tag = '' )
+#   Report.html_table_r( table, title, tag = '', head_row = nil )
 #   Report.html_list( caption, title, hash, seperator = '</td><td>' )
-#   Report.html_list_hash( caption, title, hash, seperator = '</td><td>' )
+#   Report.html_list_hash( title, hash, seperator = '</td><td>' )
 #   Report.rows( timeframe, key )
 #   Report.columns_and_rows( key )
 #   Report.puts_timeframe_table( title, key )
@@ -927,10 +936,11 @@ class Report
     'Roles' => 'Role',
     'Person' => 'Actor',
     'Puppets' => 'Puppet',
-    'Clothes' => 'Clothing',
+    'Costumes' => 'Costume',
     'Personal props' => 'PersonalProp',
     'Hand props' => 'HandProp',
     'Tech props' => 'TechProp',
+    'Special effect' => 'SpecialEffect',
     'Todos' => 'Todo'
   }.freeze
   # map extra table names to item type
@@ -942,21 +952,25 @@ class Report
     'Puppet plays' => 'Puppet',
     'Puppet use' => 'Puppet',
     'Puppet clothes' => 'Puppet',
-    'Builds' => nil,
+    # 'Builds' => nil,
+    'Todo List' => nil,
     'Hands' => 'Actor',
     'Assignments' => 'Actor',
     'People people' => 'Actor',
-    'Cast' => 'Actor'
+    'Cast of Characters' => 'Actor'
   }.freeze
   # map build table names to item type
   REPORT_BUILDS = {
     'Backdrop panel' => 'Backdrop',
+    'Costume' => 'Costume',
     'Effect' => 'Effect',
     'Front prop' => 'FrontProp',
     'Second level prop' => 'SecondLevelProp',
     'Personal prop' => 'PersonalProp',
+    'Puppets' => 'Puppet',
     'Hand prop' => 'HandProp',
-    'Tech prop' => 'TechProp'
+    'Tech prop' => 'TechProp',
+    'Special effect' => 'SpecialEffect'
   }.freeze
   # map hands table names to item type
   REPORT_HANDS = {
@@ -965,7 +979,8 @@ class Report
     'Second level prop' => 'SecondLevelProp',
     'Personal prop' => 'PersonalProp',
     'Hand prop' => 'HandProp',
-    'Tech prop' => 'TechProp'
+    'Tech prop' => 'TechProp',
+    'Special effect' => 'SpecialEffect'
   }.freeze
   # list of item type
   ITEM_LIST = [
@@ -980,10 +995,11 @@ class Report
     'Role',
     'Actor',
     'Puppet',
-    'Clothing',
+    'Costume',
     'PersonalProp',
     'HandProp',
     'TechProp',
+    'SpecialEffect',
     'Todo'
   ].freeze
   # list of references to ignore
@@ -995,6 +1011,8 @@ class Report
 
   # table of puppet clothes
   attr_accessor :puppet_clothes
+  # table of todo list
+  attr_accessor :todo_list
 
   # create a report
   def initialize( store, qscript )
@@ -1371,7 +1389,7 @@ class Report
   end
 
   def prefix_by_title( title )
-    return 'Clothing' if title == 'Clothes'
+    return 'Costume' if title == 'Costumes'
 
     title.sub( /s$/, '' )
   end
@@ -1436,15 +1454,35 @@ class Report
     end
   end
 
-  def list_builds
+  def list_builds2
     builds = {}
     @store.timeframe.timeframes.each_key do |scene|
-      builds[ scene ] = {}
       REPORT_BUILDS.each_pair do |name, type|
-        builds[ scene ][ name ] = @store.timeframe.timeframes[ scene ][ type ]
+        next unless @store.timeframe.timeframes[ scene ].key?( type )
+
+        @store.timeframe.timeframes[ scene ][ type ].each do |item|
+          scenes =
+            if builds.key?( item )
+              next if builds[ item ].first.include?( scene )
+
+              builds[ item ].first.push( scene )
+            else
+              [ scene ]
+            end
+          builds[ item ] = [ scenes, name ]
+        end
       end
     end
-    builds
+    result = [ TODO_LIST_HEADER ]
+    builds2 = builds.sort_by do |item, data|
+      [ data.last, data.first, item.downcase ]
+    end
+    builds2.each do |row|
+      scenes = row.last.first.map { |s| s.sub( /^Scene /, '' ) }
+      result.push( [ scenes.join( ', ' ), row.last.last, row.first ] )
+    end
+    @todo_list = result
+    result
   end
 
   def search_hands( scene, prop )
@@ -1643,6 +1681,28 @@ class Report
     table
   end
 
+  def list_people_scene( key, table )
+    result = [ [ 1, '' ] ]
+    seen = {}
+    table.each do |row|
+      actor = row.first
+      @store.timeframe.timeframes.each_pair do |scene, hash|
+        next unless hash.key?( key )
+	next unless hash[ key ].include?( actor )
+
+        seen[ scene ] = 0 unless seen.key?( scene )
+        seen[ scene ] += 1
+        break
+      end
+    end
+    # pp seen
+    seen.each_pair do |scene, count|
+      result.push( [ count, scene ] )
+    end
+    # pp result
+    result
+  end
+
   def merge_cast( cast, actor, action )
     return if actor.casecmp( 'none' ).zero?
 
@@ -1696,9 +1756,20 @@ class Report
     html
   end
 
-  def html_table_r( table, title, tag = '' )
+  def html_table_r( table, title, tag = '', head_row = nil )
     html = table_caption( title )
     html << "\n#{tag}<table>"
+    unless head_row.nil?
+      html << '<tr>'
+      head_row.each do |column|
+        html << '<td colspan="'
+        html << column.first.to_s
+        html << '">'
+        html << column.last
+        html << '</td>'
+      end
+      html << "</tr>\n"
+    end
     first_row = true
     table.each do |row|
       html << '<tr>'
@@ -1763,8 +1834,8 @@ class Report
     html
   end
 
-  def html_list_hash( caption, title, hash, seperator = '</td><td>' )
-    html = table_caption( caption + ' ' + title )
+  def html_list_hash( title, hash, seperator = '</td><td>' )
+    html = table_caption( title )
     html << "\n<table>"
     hash.each_pair do |item, h2|
       next if h2.nil?
@@ -1947,13 +2018,9 @@ class Report
     @html_report << html_table( table, title )
   end
 
-  def puts_builds_table( title )
-    @html_report << table_caption( title )
-    @html_report << "<br/>\n"
-    builds = list_builds
-    builds.each_pair do |key, h|
-      @html_report << html_list( 'Builds', key, h, '; ' )
-    end
+  def puts_builds2_table( title )
+    builds = list_builds2
+    @html_report << html_table( builds, title )
   end
 
   def puts_hands_table( title )
@@ -1966,24 +2033,21 @@ class Report
   end
 
   def puts_assignments_table( title )
-    @html_report << table_caption( title )
-    @html_report << "<br/>\n"
     assignments = list_people_assignments
-    @html_report << html_list_hash( 'All', 'Assignments', assignments, ', ' )
+    @html_report << html_list_hash( title, assignments, ', ' )
   end
 
-  def puts_people_people_table( title )
+  def puts_people_people_table( title, key )
     @html_report << table_caption( 'Disjunct' )
     @html_report << "<br/>\n"
-    people_people = list_people_people( 'Actor' )
-    @html_report << html_table_r( people_people, title )
+    people_people = list_people_people( key )
+    head_row = list_people_scene( key, people_people )
+    @html_report << html_table_r( people_people, title, '', head_row )
   end
 
   def puts_cast_table( title )
-    @html_report << table_caption( title )
-    @html_report << "<br/>\n"
     cast = list_cast
-    @html_report << html_list_hash( 'Cast', 'of Characters', cast, ', ' )
+    @html_report << html_list_hash( title, cast, ', ' )
   end
 
   def puts_tables
@@ -2003,15 +2067,15 @@ class Report
         puts_use_table( title, puppet_use_data( type ) )
       when 'Puppet clothes'
         puts_use_table( title, puppet_use_clothes( type ) )
-      when 'Builds'
-        puts_builds_table( title )
+      when 'Todo List'
+        puts_builds2_table( title )
       when 'Hands'
         puts_hands_table( title )
       when 'Assignments'
         puts_assignments_table( title )
       when 'People people'
-        puts_people_people_table( title )
-      when 'Cast'
+        puts_people_people_table( title, type )
+      when 'Cast of Characters'
         puts_cast_table( title )
       else
         puts_timeframe_table( title, type )
@@ -2140,7 +2204,8 @@ class Parser
     'SecondLevelProp' => [ 'SecondLevelProp', 'secondLevelProp', 'SecP' ],
     'PersonalProp' => [ 'PersonalProp', 'personalProp', 'PerP' ],
     'HandProp' => [ 'HandProp', 'handProp', 'HanP' ],
-    'TechProp' => [ 'TechProp', 'techProp', 'TecP' ]
+    'TechProp' => [ 'TechProp', 'techProp', 'TecP' ],
+    'SpecialEffect' => [ 'SpecialEffect', 'techProp', 'SfxP' ]
   }.freeze
   # names for FrontProp items
   FRONTPROP_NAMES = PROP_NAMES[ 'FrontProp' ].freeze
@@ -2152,11 +2217,14 @@ class Parser
   HANDPROP_NAMES = PROP_NAMES[ 'HandProp' ].freeze
   # names for TechProp PROP_NAMES
   TECHPROP_NAMES = PROP_NAMES[ 'TechProp' ].freeze
+  # names for Special effect PROP_NAMES
+  SFXPROP_NAMES = PROP_NAMES[ 'SpecialEffect' ].freeze
   # names for just prop types
   JUST_NAMES = {
     'PersonalProp' => [ 'PersonalProp', 'just personalProp', 'JPerP' ],
     'HandProp' => [ 'HandProp', 'just handProp', 'JHanP' ],
-    'TechProp' => [ 'TechProp', 'just techProp', 'JTecP' ]
+    'TechProp' => [ 'TechProp', 'just techProp', 'JTecP' ],
+    'SpecialEffect' => [ 'SpecialEffect', 'just techProp', 'JSfxP' ]
   }.freeze
   # names for just personalProp items
   JUSTPERS_NAMES = JUST_NAMES[ 'PersonalProp' ].freeze
@@ -2164,6 +2232,8 @@ class Parser
   JUSTPROP_NAMES = JUST_NAMES[ 'HandProp' ].freeze
   # names for just handProp items
   JUSTTECH_NAMES = JUST_NAMES[ 'TechProp' ].freeze
+  # names for just handProp items
+  JUSTSFX_NAMES = JUST_NAMES[ 'SpecialEffect' ].freeze
   # name suffix for backdrops
   BACKDROP_FIELDS = [ 'Left', 'Middle', 'Right' ].freeze
   # map extra <tag> to prop type
@@ -2175,7 +2245,7 @@ class Parser
     'pp' => 'PersonalProp',
     'hp' => 'HandProp',
     'tec' => 'TechProp',
-    'sfx' => 'TechProp'
+    'sfx' => 'SpecialEffect'
   }.freeze
   # Name for Prop to do %FOG%
   FOG_STAGEHEAND = 'Fog'.freeze
@@ -2271,7 +2341,7 @@ class Parser
 
   def parse_single_backdrop( line )
     position, text = line.split( ': ', 2 )
-    add_single_backdrop( position, text )
+    add_single_backdrop( position, text.strip )
   end
 
   def list_one_person( name )
@@ -2896,7 +2966,7 @@ class Parser
     kprop = prop.downcase
     storekey = @scene_props_names[ kprop ][ 0 ]
     case storekey
-    when 'HandProp', 'TechProp'
+    when 'HandProp', 'TechProp', 'SpecialEffect'
       # storekey, qscriptkey, reportkey = @scene_props_names[ kprop ]
       # ownerkey = storekey + '_owner'
       # owner = @store.collection[ ownerkey ][ prop ]
@@ -2920,7 +2990,7 @@ class Parser
     storekey = @scene_props_names[ kprop ][ 0 ]
     add_todo( "#{storekey} unused '#{prop}'" )
     case storekey
-    when 'HandProp', 'TechProp'
+    when 'HandProp', 'TechProp', 'SpecialEffect'
       add_just_prop( prop, JUST_NAMES[ storekey ] )
     when 'PersonalProp'
       ownerkey = storekey + '_owner'
@@ -3069,13 +3139,23 @@ class Parser
       end
     end
 
-    [ 'sfx', 'tec' ].each do |key|
+    [ 'tec' ].each do |key|
       tagged_props( line, key ).each do |prop|
         unless owner.nil?
           hands.concat( collect_owned_prop( prop, owner, TECHPROP_NAMES, key ) )
           next
         end
         hands.concat( collect_just_prop( prop, JUSTTECH_NAMES, key ) )
+      end
+    end
+
+    [ 'sfx' ].each do |key|
+      tagged_props( line, key ).each do |prop|
+        unless owner.nil?
+          hands.concat( collect_owned_prop( prop, owner, SFXPROP_NAMES, key ) )
+          next
+        end
+        hands.concat( collect_just_prop( prop, JUSTSFX_NAMES, key ) )
       end
     end
 
@@ -3228,7 +3308,7 @@ class Parser
     return if $debug.zero?
 
     add_error_note(
-      "INFO: Clothing changed for '#{role}': '#{old_clothing}' -> '#{clothing}'"
+      "INFO: Costume changed for '#{role}': '#{old_clothing}' -> '#{clothing}'"
     )
   end
 
@@ -3784,13 +3864,19 @@ parser.report.puts_tables
 parser.report.save_html( 'out.html' )
 
 table2 = parser.report.puppet_clothes
-clothes = parser.report.html_table( table2, 'Clothes' )
+clothes = parser.report.html_table( table2, 'Costumes' )
 html_clothes = File.read( HTML_HEADER_FILE )
 html_clothes << '<body>'
 html_clothes << clothes
 file_put_contents( 'clothes.html', html_clothes )
-file_put_contents( WIKI_ACTORS,
+file_put_contents( WIKI_ACTORS_FILE,
                    JSON.dump( parser.store.timeframe.wiki_highlite ) )
+
+CSV.open( TODO_LIST_FILE, 'wb', col_sep: ';' ) do |csv|
+  parser.report.todo_list.each do |row|
+    csv << row
+  end
+end
 
 $subs_count.each_pair do |pattern, count|
   next unless count.zero?
@@ -3801,7 +3887,7 @@ end
 # pp parser.store.items[ 'FrontProp' ]
 # pp parser.store.items[ 'Backdrop' ]
 # pp parser.store.items[ 'Role' ]
-# pp parser.store.items[ 'Clothing' ]
+# pp parser.store.items[ 'Costume' ]
 # pp parser.store.items[ 'Actor' ]
 # pp parser.store.items[ 'Actor' ][ 'Liam' ]
 # pp parser.store.items[ 'SecondLevelProp' ]
