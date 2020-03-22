@@ -513,8 +513,8 @@ class Store
   COLLECTION_FIELDS = [
     'notes',
     'role_puppets',
-    'role_clothes',
-    'role_old_clothes',
+    'role_costumes',
+    'role_old_costumes',
     'owned_props',
     'PersonalProp_owner',
     'HandProp_owner',
@@ -775,7 +775,7 @@ class Store
     clothing = uniq_player( clothing, 'Costume', name )
     return nil if clothing.casecmp( 'none' ).zero?
 
-    add( 'role_clothes', name, clothing )
+    add( 'role_costumes', name, clothing )
     add( 'Costume', clothing, name )
     @timeframe.add( 'Costume', clothing )
     @timeframe.add_list_text( 'Role', 'Clth+', name, [ name, clothing ] )
@@ -792,8 +792,8 @@ class Store
   # drop a clothing for a role
   def drop_one_clothing( role, puppet, clothing )
     # p [ 'drop_one_clothing', role, puppet, clothing ]
-    collection[ 'role_old_clothes' ][ role ] = clothing
-    add( 'role_old_clothes', role, clothing )
+    collection[ 'role_old_costumes' ][ role ] = clothing
+    add( 'role_old_costumes', role, clothing )
     @timeframe.add_list_text(
       'Role', 'Clth-', role, [ role( role ), clothing( clothing ) ]
     )
@@ -867,7 +867,7 @@ end
 
 # === Class Functions
 #   Report.new( store, qscript )
-#   Report.puppet_clothes
+#   Report.puppet_costumes
 #   Report.put_html( line )
 #   Report.puts_html( line )
 #   Report.find_item_of_type( name, type )
@@ -917,7 +917,7 @@ end
 #   Report.puts_backdrops_table( title, key )
 #   Report.puppet_play_full( title, key )
 #   Report.puppet_use_data( key )
-#   Report.puppet_use_clothes( key )
+#   Report.puppet_use_costumes( key )
 #   Report.puts_use_table( title, table )
 #   Report.puts_tables
 #   Report.puppet_image( puppet )
@@ -951,7 +951,7 @@ class Report
     'Puppets' => 'Puppet',
     'Puppet plays' => 'Puppet',
     'Puppet use' => 'Puppet',
-    'Puppet clothes' => 'Puppet',
+    'Puppet costumes' => 'Puppet',
     # 'Builds' => nil,
     'Todo List' => nil,
     'Hands' => 'Actor',
@@ -1009,8 +1009,8 @@ class Report
     'voice'
   ].freeze
 
-  # table of puppet clothes
-  attr_accessor :puppet_clothes
+  # table of puppet costumes
+  attr_accessor :puppet_costumes
   # table of todo list
   attr_accessor :todo_list
 
@@ -1688,7 +1688,7 @@ class Report
       actor = row.first
       @store.timeframe.timeframes.each_pair do |scene, hash|
         next unless hash.key?( key )
-	next unless hash[ key ].include?( actor )
+        next unless hash[ key ].include?( actor )
 
         seen[ scene ] = 0 unless seen.key?( scene )
         seen[ scene ] += 1
@@ -1992,7 +1992,7 @@ class Report
     table
   end
 
-  def puppet_use_clothes( key )
+  def puppet_use_costumes( key )
     table, puppets = columns_and_rows( key )
     table[ 0 ].insert( 1, 'Image' )
     puppets.each do |puppet|
@@ -2010,7 +2010,7 @@ class Report
       end
       table.push( row )
     end
-    @puppet_clothes = table
+    @puppet_costumes = table
     table
   end
 
@@ -2065,8 +2065,8 @@ class Report
         puppet_play_full( title, type )
       when 'Puppet use'
         puts_use_table( title, puppet_use_data( type ) )
-      when 'Puppet clothes'
-        puts_use_table( title, puppet_use_clothes( type ) )
+      when 'Puppet costumes'
+        puts_use_table( title, puppet_use_costumes( type ) )
       when 'Todo List'
         puts_builds2_table( title )
       when 'Hands'
@@ -2138,8 +2138,8 @@ end
 #   Parser.count_owned_prop( prop, owner, names )
 #   Parser.add_scene_prop( prop, tag )
 #   Parser.collect_single_prop( prop, names, tag )
-#   Parser.collect_owned_prop( prop, owner, names, tag )
 #   Parser.collect_just_prop( prop, names, tag )
+#   Parser.collect_owned_prop( prop, owner, names, tag )
 #   Parser.search_simple_props( line, suffix, tag )
 #   Parser.collect_simple_props( line, suffix, tag, names )
 #   Parser.search_handprop( line )
@@ -2219,21 +2219,6 @@ class Parser
   TECHPROP_NAMES = PROP_NAMES[ 'TechProp' ].freeze
   # names for Special effect PROP_NAMES
   SFXPROP_NAMES = PROP_NAMES[ 'SpecialEffect' ].freeze
-  # names for just prop types
-  JUST_NAMES = {
-    'PersonalProp' => [ 'PersonalProp', 'just personalProp', 'JPerP' ],
-    'HandProp' => [ 'HandProp', 'just handProp', 'JHanP' ],
-    'TechProp' => [ 'TechProp', 'just techProp', 'JTecP' ],
-    'SpecialEffect' => [ 'SpecialEffect', 'just techProp', 'JSfxP' ]
-  }.freeze
-  # names for just personalProp items
-  JUSTPERS_NAMES = JUST_NAMES[ 'PersonalProp' ].freeze
-  # names for just handProp items
-  JUSTPROP_NAMES = JUST_NAMES[ 'HandProp' ].freeze
-  # names for just handProp items
-  JUSTTECH_NAMES = JUST_NAMES[ 'TechProp' ].freeze
-  # names for just handProp items
-  JUSTSFX_NAMES = JUST_NAMES[ 'SpecialEffect' ].freeze
   # name suffix for backdrops
   BACKDROP_FIELDS = [ 'Left', 'Middle', 'Right' ].freeze
   # map extra <tag> to prop type
@@ -2366,7 +2351,7 @@ class Parser
       @qscript.puts_key( 'puppet+', name, val )
       @report.puts2_key( 'Pupp+', role( name ), puppet( val ) )
     end
-    clothing = @store.collection[ 'role_clothes' ][ name ]
+    clothing = @store.collection[ 'role_costumes' ][ name ]
     return if clothing.nil?
 
     @qscript.puts_key( 'clothing+', name, clothing )
@@ -2374,13 +2359,13 @@ class Parser
   end
 
   def drop_clothing( name )
-    val = @store.collection[ 'role_clothes' ][ name ]
+    val = @store.collection[ 'role_costumes' ][ name ]
     unless val.nil?
       @qscript.puts_key( 'clothing-', name, val )
       @report.puts2_key( 'Clth-', role( name ), clothing( val ) )
       @store.drop_one_clothing( name, nil, val )
     end
-    @store.collection[ 'role_old_clothes' ][ name ] = nil
+    @store.collection[ 'role_old_costumes' ][ name ] = nil
   end
 
   def drop_person_props( name )
@@ -2461,7 +2446,7 @@ class Parser
     @store.collection[ 'Role' ][ name ].each_pair do |what, players|
       drop_person_player( name, what, players )
     end
-    clothing = @store.collection[ 'role_clothes' ][ name ]
+    clothing = @store.collection[ 'role_costumes' ][ name ]
     drop_clothing( name ) unless clothing.nil?
     puppet = @store.collection[ 'role_puppets' ][ name ]
     drop_puppet( name ) unless puppet.nil?
@@ -2472,10 +2457,10 @@ class Parser
     # @store.collection[ 'person' ][ name ].each_pair do |key, val|
     #   @report.puts2_key( 'Pers=', "#{name}.#{key}", val )
     # end
-    old_clothing = @store.collection[ 'role_old_clothes' ][ name ]
+    old_clothing = @store.collection[ 'role_old_costumes' ][ name ]
     return if old_clothing.nil?
 
-    clothing = @store.collection[ 'role_clothes' ][ name ]
+    clothing = @store.collection[ 'role_costumes' ][ name ]
     if old_clothing == clothing
       @qscript.puts_key( 'clothing=', name, clothing )
       @report.puts2_key( 'Clth=', name, clothing )
@@ -2486,7 +2471,7 @@ class Parser
     drop_one_clothing( name, nil, old_clothing )
     @qscript.puts_key( 'clothing+', name, clothing )
     @report.puts2_key( 'Clth+', role( name ), clothing( clothing ) )
-    @store.collection[ 'role_clothes' ][ name ] = clothing
+    @store.collection[ 'role_costumes' ][ name ] = clothing
   end
 
   def check_role_list( list )
@@ -2509,7 +2494,7 @@ class Parser
           @store.collection[ 'person' ][ role ][ 'hands' ],
           @store.collection[ 'person' ][ role ][ 'voice' ],
           @store.collection[ 'role_puppets' ][ role ],
-          @store.collection[ 'role_clothes' ][ role ]
+          @store.collection[ 'role_costumes' ][ role ]
         ]
       else
         text.strip!
@@ -2821,17 +2806,20 @@ class Parser
   def add_just_prop( prop, names )
     # p [ 'add_just_prop', prop, names ]
     storekey, qscriptkey, reportkey = names
+    qscriptkey2 = "just #{qscriptkey}"
+    reportkey2 = "J#{reportkey}"
+    names2 = [ storekey, qscriptkey2, reportkey2 ]
     kprop = prop.downcase
     @store.count( storekey, kprop )
     @store.timeframe.add_once( storekey, kprop )
-    @store.timeframe.add_list( storekey, reportkey, '', kprop )
+    @store.timeframe.add_list( storekey, reportkey2, '', kprop )
     hands = get_hands( kprop )
-    @store.add_item( storekey, kprop, hands: hands, text: prop, names: names )
+    @store.add_item( storekey, kprop, hands: hands, text: prop, names: names2 )
     tprop = @store.items[ storekey ][ kprop ][ :name ]
-    @qscript.puts_key( qscriptkey, tprop )
-    @report.puts2_key( reportkey, kprop )
-    @scene_props_names[ kprop ] = names
-    add_prop_hands( prop, names )
+    @qscript.puts_key( qscriptkey2, tprop )
+    @report.puts2_key( reportkey2, kprop )
+    @scene_props_names[ kprop ] = names2
+    add_prop_hands( prop, names2 )
     hands
   end
 
@@ -2991,7 +2979,7 @@ class Parser
     add_todo( "#{storekey} unused '#{prop}'" )
     case storekey
     when 'HandProp', 'TechProp', 'SpecialEffect'
-      add_just_prop( prop, JUST_NAMES[ storekey ] )
+      add_just_prop( prop, PROP_NAMES[ storekey ] )
     when 'PersonalProp'
       ownerkey = storekey + '_owner'
       owner = @store.collection[ ownerkey ][ kprop ]
@@ -3031,12 +3019,6 @@ class Parser
     count_single_prop( prop, names )
   end
 
-  def collect_owned_prop( prop, owner, names, tag )
-    add_scene_prop( prop, tag )
-    # p [ 'collect_owned_prop', prop, owner, names, tag ]
-    count_owned_prop( prop, owner, names )
-  end
-
   def collect_just_prop( prop, names, tag )
     storekey = names[ 0 ]
     ownerkey = storekey + '_owner'
@@ -3052,6 +3034,14 @@ class Parser
         unless old.nil?
     end
     add_just_prop( prop, names )
+  end
+
+  def collect_owned_prop( prop, owner, names, tag )
+    return collect_just_prop( prop, names, tag ) if owner.nil?
+
+    add_scene_prop( prop, tag )
+    # p [ 'collect_owned_prop', prop, owner, names, tag ]
+    count_owned_prop( prop, owner, names )
   end
 
   def search_simple_props( line, suffix, tag )
@@ -3111,51 +3101,31 @@ class Parser
     # p ['collect_handprop', line, owner ]
     [ 'hp' ].each do |key|
       suffix_props( line, key ).each do |prop|
-        unless owner.nil?
-          hands.concat( collect_owned_prop( prop, owner, HANDPROP_NAMES, key ) )
-          next
-        end
-        hands.concat( collect_just_prop( prop, JUSTPROP_NAMES, key ) )
+        hands.concat( collect_owned_prop( prop, owner, HANDPROP_NAMES, key ) )
       end
     end
 
     [ 'pp' ].each do |key|
       tagged_props( line, key ).each do |prop|
-        unless owner.nil?
-          hands.concat( collect_owned_prop( prop, owner, PERSPROP_NAMES, key ) )
-          next
-        end
-        hands.concat( collect_just_prop( prop, JUSTPERS_NAMES, key ) )
+        hands.concat( collect_owned_prop( prop, owner, PERSPROP_NAMES, key ) )
       end
     end
 
     [ 'hp' ].each do |key|
       tagged_props( line, key ).each do |prop|
-        unless owner.nil?
-          hands.concat( collect_owned_prop( prop, owner, HANDPROP_NAMES, key ) )
-          next
-        end
-        hands.concat( collect_just_prop( prop, JUSTPROP_NAMES, key ) )
+        hands.concat( collect_owned_prop( prop, owner, HANDPROP_NAMES, key ) )
       end
     end
 
     [ 'tec' ].each do |key|
       tagged_props( line, key ).each do |prop|
-        unless owner.nil?
-          hands.concat( collect_owned_prop( prop, owner, TECHPROP_NAMES, key ) )
-          next
-        end
-        hands.concat( collect_just_prop( prop, JUSTTECH_NAMES, key ) )
+        hands.concat( collect_owned_prop( prop, owner, TECHPROP_NAMES, key ) )
       end
     end
 
     [ 'sfx' ].each do |key|
       tagged_props( line, key ).each do |prop|
-        unless owner.nil?
-          hands.concat( collect_owned_prop( prop, owner, SFXPROP_NAMES, key ) )
-          next
-        end
-        hands.concat( collect_just_prop( prop, JUSTSFX_NAMES, key ) )
+        hands.concat( collect_owned_prop( prop, owner, SFXPROP_NAMES, key ) )
       end
     end
 
@@ -3318,7 +3288,7 @@ class Parser
       @store.collection[ 'Role' ][ role ][ 'hands' ],
       @store.collection[ 'Role' ][ role ][ 'voice' ],
       @store.collection[ 'role_puppets' ][ role ],
-      @store.collection[ 'role_clothes' ][ role ]
+      @store.collection[ 'role_costumes' ][ role ]
     ]
     player, hand, voice, puppet, clothing = list
     player = old_list[ 0 ] if @store.ignore.key?( player )
@@ -3361,7 +3331,7 @@ class Parser
         @store.collection[ 'Role' ][ name ][ 'hands' ],
         @store.collection[ 'Role' ][ name ][ 'voice' ],
         @store.collection[ 'role_puppets' ][ name ],
-        @store.collection[ 'role_clothes' ][ name ]
+        @store.collection[ 'role_costumes' ][ name ]
       ]
     end
     @store.add_role( name, list )
@@ -3863,12 +3833,12 @@ parser.report.catalog_item
 parser.report.puts_tables
 parser.report.save_html( 'out.html' )
 
-table2 = parser.report.puppet_clothes
-clothes = parser.report.html_table( table2, 'Costumes' )
-html_clothes = File.read( HTML_HEADER_FILE )
-html_clothes << '<body>'
-html_clothes << clothes
-file_put_contents( 'clothes.html', html_clothes )
+table2 = parser.report.puppet_costumes
+costumes = parser.report.html_table( table2, 'Costumes' )
+html_costumes = File.read( HTML_HEADER_FILE )
+html_costumes << '<body>'
+html_costumes << costumes
+file_put_contents( 'clothes.html', html_costumes )
 file_put_contents( WIKI_ACTORS_FILE,
                    JSON.dump( parser.store.timeframe.wiki_highlite ) )
 
