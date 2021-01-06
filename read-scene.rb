@@ -1996,6 +1996,7 @@ class Report
     table, puppets = columns_and_rows( key )
     table[ 0 ].insert( 1, 'Image' )
     puppets.each do |puppet|
+      actors = []
       row = [ puppet, puppet_image( puppet ) ]
       @store.timeframe.timeframes.each_pair do |_scene, hash|
         next unless hash.key?( 'puppet_plays' )
@@ -2006,8 +2007,11 @@ class Report
         end
         role = hash[ 'puppet_plays' ][ puppet ][ 0 ]
         row[ 0 ] = "#{role} (#{puppet})"
-        row.push( hash[ 'puppet_plays' ][ puppet ][ 4 ] )
+	actors.push( hash[ 'puppet_plays' ][ puppet ][ 1 ] )
+	row.push( hash[ 'puppet_plays' ][ puppet ][ 4 ] )
       end
+      actors.uniq!
+      row[ 0 ] << " (#{actors.join(', ')})"
       table.push( row )
     end
     @puppet_costumes = table
