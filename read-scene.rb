@@ -901,6 +901,7 @@ end
 #   Report.merge_assignments( assignments, actor, action )
 #   Report.merge_assignments_role( assignments, actor, entry )
 #   Report.list_people_assignments
+#   Report.list_people_exports
 #   Report.list_people_people( key )
 #   Report.list_people_scene( key, table )
 #   Report.list_cast
@@ -957,6 +958,7 @@ class Report
     'Hands' => 'Actor',
     'Assignments' => 'Actor',
     'People people' => 'Actor',
+    'People export' => 'Actor',
     'Cast of Characters' => 'Actor'
   }.freeze
   # map build table names to item type
@@ -1635,6 +1637,67 @@ class Report
     assignments
   end
 
+  def merge_export( assignments, actor, action )
+    hactor = actor( actor )
+    if assignments.key?( action )
+      assignments[ action ].push( hactor ) \
+        unless assignments[ action ].include?( hactor )
+    else
+      assignments[ action ] = [ hactor ]
+    end
+  end
+
+  def merge_export_role( assignments, actor, entry )
+    if entry.key?( :player )
+      action = [ entry[ :role ], 'player' ]
+      merge_export( assignments, actor, action )
+      return
+    end
+
+    if entry.key?( :hands )
+      action = [ entry[ :role ], 'hands' ]
+      merge_export( assignments, actor, action )
+      return
+    end
+
+    return unless entry.key?( :voice )
+
+    action = [ entry[ :role ], 'voice' ]
+    merge_export( assignments, actor, action )
+  end
+
+  def list_people_exports
+    assignments = {}
+    @store.items[ 'Actor' ].each_pair do |actor, h|
+      next if actor.casecmp( 'none' ).zero?
+
+      h[ :list ].each do |entry|
+        if entry.key?( :role )
+          merge_export_role( assignments, actor, entry )
+          next
+        end
+
+        next unless entry.key?( :stagehand )
+
+        if entry.key?( :prop )
+          action = entry[ :prop ]
+          merge_export( assignments, actor, action )
+          next
+        end
+
+        if entry.key?( :effect )
+          action = entry[ :effect ]
+          merge_export( assignments, actor, action )
+        end
+      end
+    end
+    exports = {}
+    assignments.each_pair do |action, actors|
+      exports[ action ] = [ 'X' ].concat( actors )
+    end
+    exports
+  end
+
   def list_item_keys( key )
     list = []
     @store.items[ key ].keys.each do |actor|
@@ -2007,11 +2070,11 @@ class Report
         end
         role = hash[ 'puppet_plays' ][ puppet ][ 0 ]
         row[ 0 ] = "#{role} (#{puppet})"
-	actors.push( hash[ 'puppet_plays' ][ puppet ][ 1 ] )
-	row.push( hash[ 'puppet_plays' ][ puppet ][ 4 ] )
+        actors.push( hash[ 'puppet_plays' ][ puppet ][ 1 ] )
+        row.push( hash[ 'puppet_plays' ][ puppet ][ 4 ] )
       end
       actors.uniq!
-      row[ 0 ] << " (#{actors.join(', ')})"
+      row[ 0 ] << " (#{actors.join( ', ' )})"
       table.push( row )
     end
     @puppet_costumes = table
@@ -2049,6 +2112,123 @@ class Report
     @html_report << html_table_r( people_people, title, '', head_row )
   end
 
+  def find_export_role( type )
+    actions = []
+    @store.collection[ 'Role' ].each_pair do |name, entry|
+      entry.each_pair do |_key, val|
+        case type
+        when 'Role (Voice)'
+          next unless entry.key?( 'voice' )
+
+          actions.push( [ type, "#{name}.player", val ] )
+          break
+        when 'Role (No Voice)'
+          next if entry.key?( 'voice' )
+
+          actions.push( [ type, "#{name}.player", val ] )
+          break
+        when 'Role (Hand)'
+          if val.respond_to?( :shift )
+            next if val.empty?
+
+            val.each do |hand|
+              next if entry[ 'player' ] == val
+
+              actions.push( [ type, "#{name}.hands", hand ] )
+            end
+          else
+            next if entry[ 'player' ] == val
+
+            actions.push( [ type, "#{name}.hands", val ] )
+          end
+          break
+        end
+      end
+    end
+    actions
+  end
+
+  def columns_and_rows2( key )
+    rows = []
+    columns = [ 'Type', 'Name' ]
+    [ 'Role (Voice)', 'Role (No Voice)', 'Role (Hand)' ].each do |type|
+      list = find_export_role( type )
+      list.each do |entry|
+        rows.push( entry )
+      end
+    end
+    @store.timeframe.timeframes.each_pair do |scene, hash|
+      next unless hash.key?( key )
+
+      columns.push( scene )
+    end
+    seen = {}
+    [
+      'HandProp', 'SpecialEffect',
+      'FrontProp', 'SecondLevelProp', 'TechProp', 'PersonalProp'
+    ].each do |type|
+      @store.timeframe.timeframes.each_pair do |_scene, hash|
+        next unless hash.key?( key )
+        next unless hash.key?( type )
+
+        hash[ type ].each do |name|
+          next if seen.key?( name )
+          next unless hash[ 'props_hands' ].key?( name )
+
+          act = hash[ 'props_hands' ][ name ].join( ', ' )
+          next if act.casecmp( 'none' ).zero?
+
+          rows.push( [ type, name, act ] )
+          seen[ name ] = true
+        end
+      end
+    end
+    columns.push( 'People' )
+    [ [ columns ], rows ]
+  end
+
+  def puts_people_export( title, key )
+    table, rows = columns_and_rows2( key )
+    rows.each do |rowinfo|
+      type = rowinfo[ 0 ]
+      row = [ type ]
+      action = rowinfo[ 1 ]
+      row.push( action )
+      @store.timeframe.timeframes.each_pair do |_scene, hash|
+        next unless hash.key?( key )
+
+        unless hash.key?( type )
+          case type
+          when 'Role (Voice)'
+            row.push( nil )
+            next
+          when 'Role (No Voice)'
+            row.push( nil )
+            next
+          when 'Role (Hand)'
+            row.push( nil )
+            next
+          when 'HandProp', 'SpecialEffect',
+               'FrontProp', 'SecondLevelProp', 'TechProp', 'PersonalProp'
+            type = 'props_hands'
+          else
+            next
+          end
+        end
+
+        unless hash[ type ].include?( action )
+          row.push( nil )
+          next
+        end
+        row.push( 'x' )
+      end
+      row.push( rowinfo[ 2 ] )
+      table.push( row )
+    end
+    @html_report << html_table_r( table, title )
+    table
+  end
+
   def puts_cast_table( title )
     cast = list_cast
     @html_report << html_list_hash( title, cast, ', ' )
@@ -2079,6 +2259,8 @@ class Report
         puts_assignments_table( title )
       when 'People people'
         puts_people_people_table( title, type )
+      when 'People export'
+        puts_people_export( title, type )
       when 'Cast of Characters'
         puts_cast_table( title )
       else
