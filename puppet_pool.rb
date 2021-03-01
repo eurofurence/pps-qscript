@@ -1,9 +1,9 @@
-#!/usr/local/bin/ruby -w
+#!/usr/local/bin/ruby
 
 # = puppet_pool.rb
 #
 # Author::    Dirk Meyer
-# Copyright:: Copyright (c) 2019 Dirk Meyer
+# Copyright:: Copyright (c) 2019-2021 Dirk Meyer
 # License::   Distributes under the same terms as Ruby
 #
 

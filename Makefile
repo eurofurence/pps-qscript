@@ -1,9 +1,15 @@
 # Makefile
 
-SRC!=	ls scene*.wiki
+SRC!=		ls *scene*.wiki
+ACTORS_HTML!=	ls actors/*.html
+
+ACTORS_HTMLS=	${ACTORS_HTML:S/.html/.html,/g:S/,$//}
+ACTORS_PDF=	${ACTORS_HTML:S/html/pdf/g}
+ACTORS_LIST=	${ACTORS_HTML:S/.html//g}
 
 all:	subs.txt numbered-qscript.txt out.txt test.txt test.wdiff \
-	all.wiki clothes.pdf all.pdf puppet_pool.csv tidy.html
+	all.wiki clothes.pdf all.pdf puppet_pool.csv tidy.html \
+	actors/run.log actors
 
 pre:	all.wiki puppet_pool.csv
 
@@ -12,6 +18,12 @@ subs.txt:	subs.ini
 
 numbered-qscript.txt:	qscript.txt
 	cat -n qscript.txt > numbered-qscript.txt
+
+#hs-qscript.txt:	qscript.txt Makefile
+#	sed \
+#		-e 's|techProp|handProp|g' \
+#		-e 's|TechProp|HandProp|g' \
+#		qscript.txt > hs-qscript.txt
 
 out.txt:	out.html
 	lynx -dump -display_charset=utf-8 -nonumbers -width=5000 out.html |\
@@ -31,15 +43,29 @@ clothes.pdf:	makepdf.sh makepdf.sed clothes.html
 all.pdf:	makepdf.sh makepdf.sed all.html
 	./makepdf.sh all.pdf
 
-all.wiki:	makeall.sh header.wiki
+all.ps:		all.pdf
+	pdf2ps all.pdf
+
+actors/run.log:	highlite-actors.rb all.html wiki_actors.json
+	./highlite-actors.rb
+
+.for actor in ${ACTORS_LIST}
+${actor}.pdf:	makepdf.sh makepdf.sed ${actor}.html
+	./makepdf.sh ${actor}.pdf
+
+.endfor
+
+actors::	${ACTORS_PDF}
+
+all.wiki:	makeall.sh header.wiki index.wiki
 	./makeall.sh > all.wiki
 
 puppet_pool.csv:	puppet_pool.rb puppet_pool.wiki media/smileys.txt
 	./puppet_pool.rb
 	./get-media.sh
 
-all.html:	${SRC}
-	./fetch-wiki.rb ef25:events:pps:qscript:all.html
+all.html:	${SRC} UPLOAD/all.wiki
+	./fetch-wiki.rb ef26:events:pps:qscript:all.html
 
 tidy.html:	out.html
 	-tidy4 -wrap 5000 out.html > tidy.html
@@ -53,13 +79,22 @@ du::
 dt::
 	diff -biu out.txt test.txt | less
 
-lint::
+cop::
 	rubocop *.rb
 
-save-lint::
+save-cop::
 	rubocop --auto-gen-config *.rb
 
 doc::
 	rdoc -V *.rb
+
+hold::
+	touch hold.txt
+
+unhold:
+	rm -f hold.txt
+
+dump:
+	/media/furry/fp/bin/dump-json.rb wiki_actors.json
 
 # eof

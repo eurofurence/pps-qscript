@@ -1,9 +1,9 @@
-#!/usr/local/bin/ruby -w
+#!/usr/local/bin/ruby
 
 # = read-scene.rb
 #
 # Author::    Dirk Meyer
-# Copyright:: Copyright (c) 2018-2020 Dirk Meyer
+# Copyright:: Copyright (c) 2018-2021 Dirk Meyer
 # License::   Distributes under the same terms as Ruby
 #
 
@@ -2132,7 +2132,7 @@ class Report
             next if val.empty?
 
             val.each do |hand|
-              next if entry[ 'player' ] == val
+              next if entry[ 'player' ] == hand
 
               actions.push( [ type, "#{name}.hands", hand ] )
             end
@@ -2199,15 +2199,9 @@ class Report
 
         unless hash.key?( type )
           case type
-          when 'Role (Voice)'
-            row.push( nil )
-            next
-          when 'Role (No Voice)'
-            row.push( nil )
-            next
-          when 'Role (Hand)'
-            row.push( nil )
-            next
+          when 'Role (Voice)', 'Role (No Voice)', 'Role (Hand)'
+            type = 'Role'
+	    action = action.split( '.' ).first
           when 'HandProp', 'SpecialEffect',
                'FrontProp', 'SecondLevelProp', 'TechProp', 'PersonalProp'
             type = 'props_hands'

@@ -1,9 +1,9 @@
-#!/usr/local/bin/ruby -w
+#!/usr/local/bin/ruby
 
-# = tag-actors.rb
+# = highlite-actors.rb
 #
 # Author::    Dirk Meyer
-# Copyright:: Copyright (c) 2020-2020 Dirk Meyer
+# Copyright:: Copyright (c) 2020-2021 Dirk Meyer
 # License::   Distributes under the same terms as Ruby
 #
 
@@ -53,21 +53,25 @@ def file_put_contents( filename, buffer, mode = 'w+' )
   end
 end
 
+# add line with prefixed tag
 def add_tag_line( line, tag )
   @out << tag
   @out << line
 end
 
+# add normal line
 def add_line( line )
   add_tag_line( line, '<p>' )
 end
 
+# save actor HTML file
 def save_actor( actor )
-  filename = ACTORS_DIR + '/' + actor.downcase.delete( "'" ) + '.html'
+  filename = "#{ACTORS_DIR}/#{actor.downcase.delete( "'" )}.html"
   @seen_output[ filename ] = true
   file_put_contents( filename, @out )
 end
 
+# get list of roles from wiki text
 def parse_role_name( text )
   rest = text.gsub( / *\[[^\]]*\]/, '' )
   rest.gsub!( /^The /, '' )
@@ -78,15 +82,18 @@ def parse_role_name( text )
   end
   name = rest.split( ' ', 2 )[ 0 ]
   case name
-  when /^#{MATCH_NAME}[:]*$/
+  when /^#{MATCH_NAME}:*$/
     list.push( name.sub( ':', '' ) )
+  when /^#{MATCH_NAME} *=*$/
+    # ignore group
   else
-    STDERR.puts "Error in Role: '#{name}', #{text}"
+    warn "Error in Role: '#{name}', #{text}"
   end
   # p [ 'parse_role_name', list, text ]
   list
 end
 
+# show some debug info
 def debug( scene, actor, pattern, line )
   return if $debug.zero?
 
@@ -95,6 +102,7 @@ def debug( scene, actor, pattern, line )
   puts
 end
 
+# match the patterns for an actor anywhere in the line
 def match_pattern( scene, actor, line )
   return false unless @wiki_highlite[ scene ].key?( actor )
 
@@ -107,6 +115,7 @@ def match_pattern( scene, actor, line )
   false
 end
 
+# match the patterns for an actor in dialog lines
 def match_list( scene, actor, pattern, line2 )
   return false if line2 == ''
 
@@ -120,6 +129,7 @@ def match_list( scene, actor, pattern, line2 )
   false
 end
 
+# search wiki text for actor in the line
 def match_pattern2( scene, actor, line )
   return false unless @wiki_highlite[ scene ].key?( actor )
 
@@ -148,12 +158,12 @@ def match_pattern2( scene, actor, line )
       end
       next
     when /%ACT%/
-      line2 = line.sub( /[\n]*.*%ACT%[^>]*> */, '' )
+      line2 = line.sub( /\n*.*%ACT%[^>]*> */, '' )
       next unless match_list( scene, actor, pattern, line2 )
 
       return true
     end
-    line2 = line.sub( /^[\n]/, '' )
+    line2 = line.sub( /^\n/, '' )
     next if /^###/ =~ line2
 
     return true if match_list( scene, actor, pattern, line2 )
@@ -161,6 +171,7 @@ def match_pattern2( scene, actor, line )
   false
 end
 
+# modify line when an actor was found
 def parse_patterns( scene, actor, line )
   unless @wiki_highlite[ scene ].key?( actor )
     add_line( line )
@@ -169,12 +180,13 @@ def parse_patterns( scene, actor, line )
 
   found = match_pattern2( scene, actor, line )
   if found
-    add_tag_line( line, '<p' + HIGHLITE + '>' )
+    add_tag_line( line, "<p#{HIGHLITE}>" )
   else
     add_line( line )
   end
 end
 
+# modify table row when an actor was found
 def table_line( scene, actor, line )
   sections = line.split( '<table' )
   line2 = sections.first
@@ -184,7 +196,7 @@ def table_line( scene, actor, line )
     add_tag_line( rows.first, '<table' )
     rows[ 1 .. -1 ].each do |row|
       if /[^a-z0-9]#{actor}[^a-z0-9]/i =~ row
-        add_tag_line( row, '<tr' + HIGHLITE )
+        add_tag_line( row, "<tr#{HIGHLITE}" )
       else
         add_tag_line( row, '<tr' )
       end
@@ -192,6 +204,7 @@ def table_line( scene, actor, line )
   end
 end
 
+# generate HTML output for an actor
 def build_output( actor )
   scene = nil
   @out = ''
@@ -205,7 +218,8 @@ def build_output( actor )
       add_line( line )
       scene = line.slice( /"plugin_include_content [^ {]+/ )
       scene = scene.split( ':' ).last.delete( '"' ).capitalize
-      scene.sub!( /([0-9])([0-9])/, ' \1-\2' )
+      # scene.sub!( /([0-9])([0-9])/, ' \1-\2' )
+      scene << '.wiki'
       next
     end
     if scene.nil?
@@ -213,7 +227,8 @@ def build_output( actor )
       next
     end
     unless @wiki_highlite.key?( scene )
-      STDERR.puts "not found in cache: '#{scene}'"
+      warn "not found in cache: '#{scene}'"
+      warn @wiki_highlite.keys.inspect
       exit 1
     end
 
@@ -236,7 +251,7 @@ end
 @seen_actors = {}
 @seen_output = {}
 @wiki_highlite.each_pair do |scene, h|
-  h.keys.each do |actor|
+  h.each_key do |actor|
     next if actor == :skip
     next if @seen_actors.key?( actor )
     next if /_SH$/ =~ actor
@@ -249,8 +264,15 @@ end
 Dir.entries( ACTORS_DIR ).each do |file|
   case file
   when /[.]html$/
-    filename = ACTORS_DIR + '/' + file
+    filename = "#{ACTORS_DIR}/#{file}"
     next if @seen_output[ filename ]
+
+    puts "removing old file: #{filename}"
+    File.unlink( filename )
+  when /[.]pdf$/
+    filename = "#{ACTORS_DIR}/#{file}"
+    htmlname = filename.sub( /[.]pdf$/, '.html' )
+    next if File.exist?( htmlname )
 
     puts "removing old file: #{filename}"
     File.unlink( filename )
@@ -271,7 +293,7 @@ Get your script via the
 end
 file_put_contents( ACTORS_INDEX, wiki )
 
-FileUtils.touch( ACTORS_DIR + '/run.log' )
+FileUtils.touch( "#{ACTORS_DIR}/run.log" )
 
 exit 0
 # eof

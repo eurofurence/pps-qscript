@@ -1,9 +1,9 @@
-#!/usr/local/bin/ruby -w
+#!/usr/local/bin/ruby
 
 # = netrc.rb
 #
 # Author::    Dirk Meyer
-# Copyright:: Copyright (c) 2018-2019 Dirk Meyer
+# Copyright:: Copyright (c) 2018-2021 Dirk Meyer
 # License::   Distributes under the same terms as Ruby
 #
 # == module NetRc
@@ -21,7 +21,7 @@
 module NetRc
   class << self
     # Path to .netrc file
-    NETRC = ( ENV[ 'HOME' ] + '/.netrc' ).freeze
+    NETRC = "#{ENV[ 'HOME' ]}/.netrc".freeze
 
     # Get login data for hostname
     def login_data( hostname )
@@ -29,7 +29,7 @@ module NetRc
       pass = nil
       found = false
       File.read( NETRC ).split( "\n" ).each do |l|
-        token, val = l.split( ' ' )
+        token, val = l.split
         case token
         when 'machine'
           next unless val == hostname
@@ -46,7 +46,7 @@ module NetRc
           break # first match only
         end
       end
-      STDERR.puts 'Login not found.' if user.nil?
+      warn 'Login not found.' if user.nil?
       [ user, pass ]
     end
   end

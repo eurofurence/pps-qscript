@@ -1,9 +1,9 @@
-#!/usr/local/bin/ruby -w
+#!/usr/local/bin/ruby
 
 # = fetch-wiki.rb
 #
 # Author::    Dirk Meyer
-# Copyright:: Copyright (c) 2018 - 2019 Dirk Meyer
+# Copyright:: Copyright (c) 2018-2021 Dirk Meyer
 # License::   Distributes under the same terms as Ruby
 #
 
@@ -17,14 +17,14 @@ require 'dokuwiki'
 # hostname of EF dokuwiki
 EFHOST = 'wiki.eurofurence.org'.freeze
 # path inside EF dokuwiki
-EFPATH = 'ef25:events:pps:script:'.freeze
+EFPATH = 'ef26:events:pps:script:'.freeze
 
 user, pass = NetRc.login_data( EFHOST )
 # p [ user, pass ]
 exit if user.nil?
 
 dokuwiki = DokuWiki::DokuWikiAccess.new( EFHOST )
-dokuwiki.login( 'ef25:events:pps:qscript', user, pass )
+dokuwiki.login( 'ef26:events:pps:qscript', user, pass )
 dokuwiki.media_dir = 'media'
 
 # example paths:
@@ -39,9 +39,11 @@ unless ARGV.empty?
 end
 
 [
-  'scene11', 'scene12', 'scene13', 'scene14',
-  'scene21', 'scene22', 'scene23', 'scene24',
-  'scene31', 'scene32', 'scene33'
+  'index',
+  '11_scene', '12_scene', '13_scene', '14_scene',
+  '13_intro', '14_intro',
+  '21_scene', '22_scene', '23_scene', '24_scene',
+  # '31_scene', '32_scene', '33_scene', '34_scene'
 ].each do |nexturl|
   dokuwiki.save_wiki_path( EFPATH + nexturl )
 end
