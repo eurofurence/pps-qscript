@@ -82,12 +82,12 @@ end
 
 # quote a string
 def quoted( text )
-  '"' + text.gsub( '"', '\"' ) + '"'
+  "\"#{text.gsub( '"', '\"' )}\""
 end
 
 # quote a string
 def quoted_noescape( text )
-  '"' + text + '"'
+  "\"#{text}\""
 end
 
 # convert special characters to html codes
@@ -191,7 +191,7 @@ class RolesConfig
   # show unused entries
   def unused
     @roles_seen.each_pair do |name, count|
-      next if count > 0
+      next if count.positive?
 
       puts "Role Group #{name} is not used."
     end
@@ -457,7 +457,7 @@ class Timeframe
 
   # add a spoken line to the current timeframe
   def add_spoken( type, name )
-    add_list_text( type + '_sum_spoken', 'Spokn', name, nil )
+    add_list_text( "#{type}_sum_spoken", 'Spokn', name, nil )
   end
 
   # add a full list or hash to the current timeframe
@@ -540,7 +540,7 @@ class Store
     ITEM_TYPE_INDEX.each_key do |key|
       @items[ key ] = {}
       @collection[ key ] = {}
-      @collection[ key + '_count' ] = {}
+      @collection[ "#{key}_count" ] = {}
     end
     COLLECTION_FIELDS.each do |collection|
       @collection[ collection ] = {}
@@ -563,7 +563,7 @@ class Store
 
   # count an item in the collection
   def count( collection, key )
-    storekey = collection + '_count'
+    storekey = "#{collection}_count"
     @collection[ storekey ] = {} unless @collection.key?( storekey )
     if @collection[ storekey ].key?( key )
       @collection[ storekey ][ key ] += 1
@@ -1108,7 +1108,7 @@ class Report
   def html_p( arr )
     loc = "loc#{@qscript.lines}_2"
     key = arr.shift
-    text = '&nbsp;' + key
+    text = "&nbsp;#{key}"
     arr.each do |item|
       text << ' '
       if item.respond_to?( :key )
@@ -1171,7 +1171,7 @@ class Report
 
   # generate a list entry for an item
   def html_li_ref_item( ref, item )
-    '<li>' + to_html( ref, item ) + "</li>\n"
+    "<li>#{to_html( ref, item )}</li>\n"
   end
 
   # generate a paragraph with an anchor for an item
@@ -1206,13 +1206,13 @@ class Report
   # add a list entry to html_head and html_report
   def add_head( item )
     @html_head << html_li_item( item )
-    @html_report << html_u_item( item ) + "\n"
+    @html_report << "#{html_u_item( item )}\n"
   end
 
   # add a list entry to html_script and html_report
   def add_script( item )
     @html_script << html_li_item( item )
-    @html_report << html_u_item( item ) + "<br/>\n"
+    @html_report << "#{html_u_item( item )}<br/>\n"
   end
 
   # list titles of timeframes and quote them
@@ -1226,7 +1226,7 @@ class Report
       text = "#{prefix} #{quoted_noescape( prop )}"
       ref = "timeframeC#{count}"
       count += 1
-      @html_report << html_li_ref_item( ref, text ) + "\n"
+      @html_report << "#{html_li_ref_item( ref, text )}\n"
     end
     @html_report << "</ul><br/>\n"
   end
@@ -1243,7 +1243,7 @@ class Report
       seen[ prop ] = true
       ref = html_object_ref( tname( type, prop ) )
       text = "#{prefix} #{html_escape( quoted_noescape( prop ) )}"
-      @html_report << html_li_ref_item( ref, text ) + "\n"
+      @html_report << "#{html_li_ref_item( ref, text )}\n"
     end
   end
 
@@ -1255,11 +1255,11 @@ class Report
     list.each do |prop, _count|
       ref =
         if type.nil?
-          'tab' + capitalize( prop )
+          "tab#{capitalize( prop )}"
         else
           html_object_ref( tname( type, prop ) )
         end
-      out << html_li_ref_item( ref, html_escape( prop ) ) + "\n"
+      out << "#{html_li_ref_item( ref, html_escape( prop ) )}\n"
     end
     out
   end
@@ -1292,7 +1292,7 @@ class Report
     count = 0
     Timeframe::TIMEFRAME_FIELDS.each_pair do |key, type|
       @html_report <<
-        html_u_ref_item( "catalog#{count}", "Catalog: #{key}" ) + "\n<ul>"
+        "#{html_u_ref_item( "catalog#{count}", "Catalog: #{key}" )}\n<ul>"
       count += 1
       list( @store.items[ type ], type )
       @html_report << "</ul><br/>\n"
@@ -1309,7 +1309,7 @@ class Report
     if hash[ :text ].respond_to?( :shift )
       hash[ :text ].each do |item|
         if item.respond_to?( :key )
-          html_item << ' ' + html_object_name( item )
+          html_item << " #{html_object_name( item )}"
           next
         end
 
@@ -1317,12 +1317,12 @@ class Report
           arr = item.dup
           html_item << html_object_name( arr.shift.dup )
           arr.each do |sub|
-            html_item << '.' + html_object_name( sub )
+            html_item << ".#{html_object_name( sub )}"
           end
           next
         end
 
-        html_item << ' ' + html_object_name( item )
+        html_item << " #{html_object_name( item )}"
       end
     else
       html_item << html_object_name( hash[ :text ] )
@@ -1331,7 +1331,7 @@ class Report
   end
 
   def person_scene_count( scene, type, name )
-    listname = type + '_sum_spoken'
+    listname = "#{type}_sum_spoken"
     return 0 unless @store.timeframe.timeframes_lines.key?( listname )
     return 0 unless @store.timeframe.timeframes_lines[ listname ].key?( name )
 
@@ -1370,8 +1370,7 @@ class Report
           count = @store.timeframe.timeframes[ h[ :scene ] ][ :number ]
           refa = "timeframe#{count}"
           html_list <<
-            '<p>' + to_html( refa, h[ :scene ] ) +
-            ': ' + text + "</p>\n"
+            "<p>#{to_html( refa, h[ :scene ] )}: #{text}</p>\n"
         end
       end
       last_scene = h[ :scene ]
@@ -1404,7 +1403,7 @@ class Report
   end
 
   def person_spoken_count( type, name )
-    listname = type + '_sum_spoken'
+    listname = "#{type}_sum_spoken"
     return 0 unless @store.timeframe.timeframes_lines.key?( listname )
     return 0 unless @store.timeframe.timeframes_lines[ listname ].key?( name )
 
@@ -1443,8 +1442,8 @@ class Report
       count = @store.timeframe.timeframes[ scene ][ :number ]
       refu = "timeframeC#{count}"
       refa = "timeframe#{count}"
-      item = 'Timeframe contents ' + to_html( refa, quoted( scene ) )
-      @html_report << html_u_ref_item( refu, item ) + "\n"
+      item = "Timeframe contents #{to_html( refa, quoted( scene ) )}"
+      @html_report << "#{html_u_ref_item( refu, item )}\n"
       @html_report << '<ul>'
       Timeframe::TIMEFRAME_FIELDS.each_pair do |field, type|
         prefix = prefix_by_title( field )
@@ -1550,7 +1549,7 @@ class Report
       # p line
       case line[ :key ]
       when /^Pers[+]/
-        task = person + '.' + line[ :text ][ 0 ][ 0 ]
+        task = "#{person}.#{line[ :text ][ 0 ][ 0 ]}"
         next if found.include?( task )
 
         found.push( task )
@@ -1700,7 +1699,7 @@ class Report
 
   def list_item_keys( key )
     list = []
-    @store.items[ key ].keys.each do |actor|
+    @store.items[ key ].each_key do |actor|
       next if actor.casecmp( 'none' ).zero?
 
       list.push( actor )
@@ -1795,7 +1794,7 @@ class Report
   end
 
   def table_caption( title )
-    href = 'tab' + capitalize( title )
+    href = "tab#{capitalize( title )}"
     html_u_ref_item( href, title )
   end
 
@@ -1870,7 +1869,7 @@ class Report
   end
 
   def html_list( caption, title, hash, seperator = '</td><td>' )
-    html = table_caption( caption + ' ' + title )
+    html = table_caption( "#{caption} #{title}" )
     html << "\n<table>"
     hash.each_pair do |item, h2|
       next if h2.nil?
@@ -2008,7 +2007,7 @@ class Report
     end
     @html_report <<
       if $compat
-        html_table( table, title, '<ul><li>' ) + '</li></ul>'
+        "#{html_table( table, title, '<ul><li>' )}</li></ul>"
       else
         html_table( table, title )
       end
@@ -2026,10 +2025,10 @@ class Report
           next
         end
         val = hash[ 'puppet_plays' ][ puppet ][ 1 ].dup
-        val << '/' + hash[ 'puppet_plays' ][ puppet ][ 2 ] \
+        val << "/#{hash[ 'puppet_plays' ][ puppet ][ 2 ]}" \
           if hash[ 'puppet_plays' ][ puppet ][ 2 ] \
           != hash[ 'puppet_plays' ][ puppet ][ 1 ]
-        val << ' (' + hash[ 'puppet_plays' ][ puppet ][ 0 ] + ')'
+        val << " (#{hash[ 'puppet_plays' ][ puppet ][ 0 ]})"
         row.push( val )
       end
       table.push( row )
@@ -2095,7 +2094,7 @@ class Report
     @html_report << "<br/>\n"
     hprops = list_hand_props
     hprops.each_pair do |key, h|
-      @html_report << html_table( h, 'Hands' + ' ' + key )
+      @html_report << html_table( h, "Hands #{key}" )
     end
   end
 
@@ -2201,7 +2200,7 @@ class Report
           case type
           when 'Role (Voice)', 'Role (No Voice)', 'Role (Hand)'
             type = 'Role'
-	    action = action.split( '.' ).first
+            action = action.split( '.' ).first
           when 'HandProp', 'SpecialEffect',
                'FrontProp', 'SecondLevelProp', 'TechProp', 'PersonalProp'
             type = 'props_hands'
@@ -2271,11 +2270,7 @@ class Report
   def save_html( filename, extra = '' )
     file_put_contents(
       filename,
-      @html_head +
-        @html_script +
-        @html_report +
-        extra +
-        "</body></html>\n"
+      "#{@html_head}#{@html_script}#{@html_report}#{extra}</body></html>\n"
     )
   end
 end
@@ -2558,24 +2553,24 @@ class Parser
       # remove_owned_prop( prop, name, h[ :names ] )
       storekey, qscriptkey, reportkey = h[ :names ]
       tprop = @store.items[ storekey ][ prop ][ :name ]
-      @qscript.puts_key( qscriptkey + '-', name, tprop )
+      @qscript.puts_key( "#{qscriptkey}-", name, tprop )
       @report.puts2_key(
-        reportkey + '-', role( name ), tname( storekey, prop )
+        "#{reportkey}-", role( name ), tname( storekey, prop )
       )
-      @store.collection[ storekey + '_owner' ][ prop ] = nil
+      @store.collection[ "#{storekey}_owner" ][ prop ] = nil
       @store.timeframe.add_list_text(
-        storekey, reportkey + '-', prop,
+        storekey, "#{reportkey}-", prop,
         [ role( name ), tname( storekey, prop ) ]
       )
       @store.timeframe.add_list_text(
-        'Role', reportkey + '-', name,
+        'Role', "#{reportkey}-", name,
         [ role( name ), tname( storekey, prop ) ]
       )
       next if reportkey == 'HanP'
 
       puppet = @store.collection[ 'role_puppets' ][ name ]
       @store.timeframe.add_list_text(
-        'Puppet', reportkey + '-', puppet,
+        'Puppet', "#{reportkey}-", puppet,
         [ role( name ), tname( storekey, prop ) ]
       )
     end
@@ -2756,7 +2751,7 @@ class Parser
   end
 
   def new_stagehand( prop )
-    prop.tr( ' ', '_' ).gsub( /^[a-z]|[\s._+-]+[a-z]/, &:upcase ) + '_SH'
+    prop.tr( ' ', '_' ).gsub( /^[a-z]|[\s._+-]+[a-z]/, &:upcase ) << '_SH'
   end
 
   def parse_single_prop( line, key, type )
@@ -2794,11 +2789,11 @@ class Parser
     when 'Puppets'
       parse_single_puppet( line )
     when 'Setting'
-      @setting << "\n" + line
+      @setting << "\n#{line}"
     when 'On 2nd rail', 'On playrail', 'Hand props', 'Props'
       parse_all_props( line )
     when 'Stage setup'
-      @setting << "\n" + line
+      @setting << "\n#{line}"
       parse_all_props( line )
     end
   end
@@ -2861,14 +2856,10 @@ class Parser
     case list[ 0 ]
     when /^[A-Z][a-z]*:/
       parse_single_backdrop( list[ 0 ] )
-    when 'Left'
-      add_single_backdrop( list[ 0 ], list[ 1 ] )
-    when 'Middle'
-      add_single_backdrop( list[ 0 ], list[ 1 ] )
-    when 'Right'
+    when 'Left', 'Middle', 'Right'
       add_single_backdrop( list[ 0 ], list[ 1 ] )
     else
-      @setting << "\n" + line
+      @setting << "\n#{line}"
       parse_table_prop( line )
     end
   end
@@ -2882,7 +2873,7 @@ class Parser
     when 'Backdrop'
       parse_table_backdrop( line )
     when 'Setting'
-      @setting << "\n" + line
+      @setting << "\n#{line}"
     when 'On 2nd rail', 'On playrail', 'Hand props', 'Special effects'
       parse_table_prop( line )
     when 'PreRec'
@@ -2931,7 +2922,7 @@ class Parser
     when 'Costumes'
       parse_costumes( line )
     when 'Setting'
-      @setting << "\n" + line
+      @setting << "\n#{line}"
     when 'Stage setup', 'On 2nd rail', 'On playrail'
       # ignore
     when 'Props', 'Hand props', 'PreRec', 'Special effects'
@@ -3039,7 +3030,7 @@ class Parser
 
   def add_owned_prop( prop, owner, names )
     storekey, qscriptkey, reportkey = names
-    ownerkey = storekey + '_owner'
+    ownerkey = "#{storekey}_owner"
     kprop = prop.downcase
     tprop =
       if @store.items[ storekey ].key?( kprop )
@@ -3079,14 +3070,14 @@ class Parser
   def remove_owned_prop( prop, owner, names )
     # p [ 'remove_owned_prop', prop, owner, names ]
     storekey, qscriptkey, reportkey = names
-    ownerkey = storekey + '_owner'
+    ownerkey = "#{storekey}_owner"
     kprop = prop.downcase
     tprop = @store.items[ storekey ][ kprop ][ :name ]
     # return if qscriptkey =~ /^just /
 
     @qscript.puts_key_token( qscriptkey, '-', owner, tprop )
     @report.puts2_key(
-      reportkey + '-', role( owner ), tname( storekey, kprop )
+      "#{reportkey}-", role( owner ), tname( storekey, kprop )
     )
     @store.count( storekey, kprop )
     @store.add( ownerkey, kprop, nil )
@@ -3104,7 +3095,7 @@ class Parser
   def count_owned_prop( prop, owner, names )
     # p [ 'count_owned_prop', prop, owner, names ]
     storekey, qscriptkey, reportkey = names
-    ownerkey = storekey + '_owner'
+    ownerkey = "#{storekey}_owner"
     kprop = prop.downcase
     old = @store.collection[ ownerkey ][ kprop ]
     if old == owner
@@ -3161,7 +3152,7 @@ class Parser
     when 'HandProp', 'TechProp', 'SpecialEffect'
       add_just_prop( prop, PROP_NAMES[ storekey ] )
     when 'PersonalProp'
-      ownerkey = storekey + '_owner'
+      ownerkey = "#{storekey}_owner"
       owner = @store.collection[ ownerkey ][ kprop ]
       if owner.nil?
         add_single_prop( prop, @scene_props_names[ kprop ] )
@@ -3189,7 +3180,7 @@ class Parser
   def collect_single_prop( prop, names, tag )
     add_scene_prop( prop, tag )
     kprop = prop.downcase
-    storekey = names[ 0 ] + '_count'
+    storekey = "#{names[ 0 ]}_count"
     @store.collection[ storekey ] = {} unless @store.collection.key?( storekey )
     if @scene_props[ kprop ] == 1
       # add_todo( "#{names[ 0 ]} missing in header '#{prop}'" )
@@ -3201,7 +3192,7 @@ class Parser
 
   def collect_just_prop( prop, names, tag )
     storekey = names[ 0 ]
-    ownerkey = storekey + '_owner'
+    ownerkey = "#{storekey}_owner"
     add_scene_prop( prop, tag )
     kprop = prop.downcase
     # p [
@@ -3404,7 +3395,7 @@ class Parser
 
   def add_error_note( line )
     add_todo( line )
-    STDERR.puts line
+    warn line
   end
 
   def change_role_player( role, old_player, player )
@@ -3500,7 +3491,7 @@ class Parser
     p [ 'unknown_person', name ]
     if @section != 'Puppets:'
       add_error_note( "unknown Role: '#{name}'" )
-      STDERR.puts( @store.collection[ 'Role' ][ name ] )
+      warn( @store.collection[ 'Role' ][ name ] )
     end
     list = [ nil, nil, nil, nil, nil ]
     if @store.collection[ 'Role' ].key?( name )
@@ -3575,7 +3566,7 @@ class Parser
     group, text = group.split( ' ', 2 )
     roles = []
     positions = {}
-    rest.scan( /(#{MATCH_NAME}) *([\[][^\]]*[\]])*/ ) do |role, position|
+    rest.scan( /(#{MATCH_NAME}) *(\[[^\]]*\])*/ ) do |role, position|
       next if role == 'and'
 
       roles.push( role )
@@ -3602,13 +3593,13 @@ class Parser
     end
     name, rest = rest.split( ' ', 2 )
     case name
-    when /^#{MATCH_NAME}[:]*$/
+    when /^#{MATCH_NAME}:*$/
       list.push( name.sub( ':', '' ) )
     else
       add_error_note( "Error in Role: '#{name}', #{text}" )
     end
     case rest
-    when /^= *#{MATCH_NAME}[:]/
+    when /^= *#{MATCH_NAME}:/
       group = rest.sub( /^= */, '' ).split( ':' ).first
       @roles_config.add_roles( group, list )
     end
@@ -3737,7 +3728,7 @@ class Parser
 
   def parse_table_section( line )
     SECTION_NAMES.each do |key|
-      next unless line =~ /^[\^] *#{key} /
+      next unless line =~ /^\^ *#{key} /
 
       @section = key
       return true
@@ -3748,10 +3739,7 @@ class Parser
 
   def parse_section( line )
     case line
-    when ''
-      @section = nil if @section != 'INTRO'
-      return true # ignore empty line
-    when '----', '^Part^Time|'
+    when '', '----', '^Part^Time|'
       @section = nil if @section != 'INTRO'
       return true
     when /^<html>/, /^\[\[/
@@ -3763,8 +3751,8 @@ class Parser
     when /^      [*] / # head data
       parse_section_data( @section, line )
       return true
-    when /^    [*] [A-Za-z][A-Za-z0-9_ -]*[:]/ # head comment
-      @section = line.slice( /[A-Za-z][A-Za-z0-9_ -]*[:]/ )[ 0 .. -2 ]
+    when /^    [*] [A-Za-z][A-Za-z0-9_ -]*:/ # head comment
+      @section = line.slice( /[A-Za-z][A-Za-z0-9_ -]*:/ )[ 0 .. -2 ]
       parse_head( @section, line )
       return true
     when '== INTRO =='
@@ -3776,16 +3764,16 @@ class Parser
     when '== TECH PREROLL =='
       @section = 'PREROLL'
       return true
-    when /^[\^]/ # table head
+    when /^\^/ # table head
       parse_table_section( line )
       return true if @section.nil?
 
-      @qscript.puts "\t//" + line
+      @qscript.puts "\t//#{line}"
       return true
     when /^\|/ # table data
       return true if @section.nil?
 
-      @qscript.puts "\t//" + line
+      @qscript.puts "\t//#{line}"
       parse_table_all( line )
       return true
     when /^### /
@@ -3856,6 +3844,24 @@ class Parser
     add_todo( "%SPT% ohne Prop oder Stagehand: #{text}" )
   end
 
+  def add_fog_hands( text )
+    @store.timeframe.add( 'Effect', text )
+    hands = get_hands( FOG_STAGEHEAND )
+    hands = get_hands( FOG_STAGEHEAND.downcase ) if hands.empty?
+    hands = get_stagehand( 'fog' ) if hands.empty?
+    @scene_props_hands[ text ] = hands
+    hands.each do |hand|
+      @store.add_item( 'Actor', hand, effect: text, stagehand: true )
+      add_todo( @store.check_actor( hand ) )
+      @store.add_item( 'Effect', text, stagehand: hand )
+      parse_stagehand( hand, text, 'effect', 'Effct' )
+      @store.timeframe.add( 'Effect', text )
+      @store.timeframe.add_list_text( 'Effect', 'Effct', text, [ hand, text ] )
+      @store.timeframe.add_list_text( 'Actor', 'Effct', text, [ hand, text ] )
+      @store.timeframe.add_wiki_actor_for( hand, text )
+    end
+  end
+
   def parse_fog( text )
     props = search_handprop( text )
     props.each do |prop|
@@ -3883,21 +3889,7 @@ class Parser
     end
     return unless props.empty?
 
-    @store.timeframe.add( 'Effect', text )
-    hands = get_hands( FOG_STAGEHEAND )
-    hands = get_hands( FOG_STAGEHEAND.downcase ) if hands.empty?
-    hands = get_stagehand( 'fog' ) if hands.empty?
-    @scene_props_hands[ text ] = hands
-    hands.each do |hand|
-      @store.add_item( 'Actor', hand, effect: text, stagehand: true )
-      add_todo( @store.check_actor( hand ) )
-      @store.add_item( 'Effect', text, stagehand: hand )
-      parse_stagehand( hand, text, 'effect', 'Effct' )
-      @store.timeframe.add( 'Effect', text )
-      @store.timeframe.add_list_text( 'Effect', 'Effct', text, [ hand, text ] )
-      @store.timeframe.add_list_text( 'Actor', 'Effct', text, [ hand, text ] )
-      @store.timeframe.add_wiki_actor_for( hand, text )
-    end
+    add_fog_hands( text )
   end
 
   def parse_curtain( line )
@@ -3915,7 +3907,7 @@ class Parser
   def intro_line( line )
     return false unless @section == 'INTRO'
 
-    print_simple_line( '%PRE% ' + line )
+    print_simple_line( "%PRE% #{line}" )
     true
   end
 
@@ -3927,8 +3919,8 @@ class Parser
       collect_backdrop( line )
       return
     when /^Setting:/
-      @qscript.puts "\t//" + line
-      @setting << "\n" + line
+      @qscript.puts "\t//#{line}"
+      @setting << "\n#{line}"
       @section = 'Setting'
       return
     when /^%HND% Curtain - /
@@ -3946,21 +3938,21 @@ class Parser
     when /^%MIX% /
       add_note( line )
       return
-    when /^#{MATCH_NAME} [(][^:]*[)][:] /
+    when /^#{MATCH_NAME} [(][^:]*[)]: /
       return if intro_line( line )
 
       name, comment, text =
-        line.scan( /^(#{MATCH_NAME}) [(]([^:]*)[)][:] (.*)/ )[ 0 ]
+        line.scan( /^(#{MATCH_NAME}) [(]([^:]*)[)]: (.*)/ )[ 0 ]
       print_spoken_roles( name, comment, text )
       return
-    when /^#{MATCH_NAME}[:] /
+    when /^#{MATCH_NAME}: /
       return if intro_line( line )
 
       name, text = line.split( ': ', 2 )
       print_spoken_roles( name, nil, text )
       return
-    when /^#{MATCH_NAME}(, #{MATCH_NAME}| +and +)*[:] /,
-         /^#{MATCH_NAME}(, #{MATCH_NAME}| +and +)* *= *#{MATCH_NAME}[:] /
+    when /^#{MATCH_NAME}(, #{MATCH_NAME}| +and +)*: /,
+         /^#{MATCH_NAME}(, #{MATCH_NAME}| +and +)* *= *#{MATCH_NAME}: /
       return if intro_line( line )
 
       print_spoken_mutiple( line )
@@ -3990,7 +3982,8 @@ class Parser
 end
 
 $subs = read_subs( SUBS_CONFIG_FILE )
-$subs_count = $subs.map { |k, _v| [ k, 0 ] }.to_h
+$subs_count = $subs.transform_values { |_val| 0 }
+
 $puppet_pool = read_subs( PUPPET_POOL_FILE )
 qscript = QScript.new
 timeframe = Timeframe.new( qscript )
@@ -3999,7 +3992,7 @@ report = Report.new( store, qscript )
 parser = Parser.new( store, qscript, report )
 
 ARGV.each do |filename|
-  STDERR.puts filename
+  warn filename
   version = File.stat( filename ).mtime.strftime( '%Y-%m-%d %H:%M' )
   lines = File.read( filename ).split( "\n" )
   parser.parse_lines( filename, lines, version )
