@@ -18,10 +18,13 @@ $: << '.'
 WIKI_ACTORS = 'wiki_actors.json'.freeze
 # input html
 INPUT_HTML = 'all.html'.freeze
+# old input html
+CHANGED_HTML = 'all.html.orig'.freeze
 # output directory
 ACTORS_DIR = 'actors'.freeze
 # output index
-ACTORS_INDEX = 'actors.wiki'.freeze
+ACTORS_PDF_INDEX = 'actors.wiki'.freeze
+ACTORS_HTML_INDEX = 'actors-html.wiki'.freeze
 # regular expression for matching names
 MATCH_NAME = '[A-Za-z0-9_-]+'.freeze
 # hostname of EF dokuwiki
@@ -29,7 +32,10 @@ EFHOST = 'wiki.eurofurence.org'.freeze
 # path inside EF dokuwiki
 EFPATH = 'ef26:events:pps:qscript'.freeze
 # css highlite with color
-HIGHLITE = ' style="background-color:#FFFF00;"'.freeze
+# HIGHLITE = ' style="background-color:#FFFF00;"'.freeze
+HIGHLITE = ' class="highlite"'.freeze
+# css highlite with color
+CHANGED = ' class="changed"'.freeze
 
 $debug = 0
 
@@ -80,6 +86,7 @@ def parse_role_name( text )
     name, rest = rest.split( / and |, */, 2 )
     list.push( name )
   end
+  # Scene Sketches
   name = rest.split( ' ', 2 )[ 0 ]
   case name
   when /^#{MATCH_NAME}:*$/
@@ -118,6 +125,7 @@ end
 # match the patterns for an actor in dialog lines
 def match_list( scene, actor, pattern, line2 )
   return false if line2 == ''
+  return false if line2 =~ /<a href=/
 
   list = parse_role_name( line2 )
   list.each do |role|
@@ -134,12 +142,15 @@ def match_pattern2( scene, actor, line )
   return false unless @wiki_highlite[ scene ].key?( actor )
 
   @wiki_highlite[ scene ][ actor ].each do |pattern|
+    # item
     if pattern[ 0 ] == pattern[ 0 ].downcase
-      next unless /[^a-z0-9]#{pattern}[^a-z0-9]/i =~ line
+      # next unless /[^a-z0-9]#{pattern}[^a-z0-9]/i =~ line
+      next unless /[^a-z0-9]#{pattern} *</i =~ line
 
       debug( scene, actor, pattern, line )
       return true
     end
+
     case line
     when /%(ATT)%/
       if /[^a-z0-9]#{pattern}[^a-z0-9]/i =~ line
@@ -208,13 +219,19 @@ end
 def build_output( actor )
   scene = nil
   @out = ''
+  @linenumber = 0
+  version = File.stat( INPUT_HTML ).mtime.strftime( '%Y-%m-%d %H:%M' )
   lines = File.read( INPUT_HTML ).split( '<p>' )
   lines.each do |line|
+    @linenumber += 1
     case line
+    when /<title>/
+      add_tag_line( line.sub( ':all', ":#{actor}:#{version}" ), '' )
+      next
     when /<!-- TOC START -->/
       add_tag_line( line, '' )
       next
-    when /"plugin_include_content /
+    when /class="plugin_include_content /
       add_line( line )
       scene = line.slice( /"plugin_include_content [^ {]+/ )
       scene = scene.split( ':' ).last.delete( '"' ).capitalize
@@ -233,6 +250,10 @@ def build_output( actor )
     end
 
     case line
+    when /<div class="level1">/
+      add_line( line )
+      add_line( "#{version}</p>" )
+      next
     when /table/
       table_line( scene, actor, line )
       next
@@ -289,9 +310,22 @@ Get your script via the
 "
 @seen_output.keys.sort.each do |file|
   actor = file.split( '/' ).last.sub( /[.]html$/, '' )
-  wiki << "Script for {{:#{EFPATH}:#{actor}.pdf|#{actor}}}\\\\\n"
+  wiki << "Script for {{:#{EFPATH}:actors:#{actor}.pdf|#{actor}}}\\\\\n"
 end
-file_put_contents( ACTORS_INDEX, wiki )
+file_put_contents( ACTORS_PDF_INDEX, wiki )
+
+url = "https://#{EFHOST}/doku.php?id=#{EFPATH}&do=media&ns=#{namespace}"
+wiki = "====== Actors Scripts as HTML ======
+
+Get your script via the
+[[#{url}||Media_Manager]]
+
+"
+@seen_output.keys.sort.each do |file|
+  actor = file.split( '/' ).last.sub( /[.]html$/, '' )
+  wiki << "Script for {{:#{EFPATH}:actors:#{actor}.html|#{actor}}}\\\\\n"
+end
+file_put_contents( ACTORS_HTML_INDEX, wiki )
 
 FileUtils.touch( "#{ACTORS_DIR}/run.log" )
 
