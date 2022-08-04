@@ -37,6 +37,7 @@ $nat_sort = true
 $compat = false
 $compat2 = true
 $debug = 0
+$debug = 1
 
 # check if downloaded file has changed
 def downloaded?( filename, buffer )
@@ -155,12 +156,12 @@ class RolesConfig
   attr_accessor :roles_map
 
   # create a mapping table
-  def initialize( scene, filenmae )
+  def initialize( scene, filename )
     @roles_map = {}
     @roles_seen = {}
-    return unless File.exist?( filenmae )
+    return unless File.exist?( filename )
 
-    File.read( filenmae ).split( "\n" ).each do |line|
+    File.read( filename ).split( "\n" ).each do |line|
       next if /^#/ =~ line
 
       list = line.split( ';' )
@@ -372,6 +373,10 @@ class Timeframe
 
   # add an new item to the current timeframe
   def add( key, val )
+    if val.nil?
+      pp @error_line
+      warn @error_line
+    end
     raise if val.nil?
 
     @timeframes[ @timeframe ][ key ] = [] \
@@ -472,6 +477,7 @@ end
 #   Store.new( timeframe )
 #   Store.items
 #   Store.collection
+#   Store.current_roles
 #   Store.timeframe
 #   Store.ignore
 #   Store.add( collection, key, val )
@@ -482,6 +488,8 @@ end
 #   Store.check_puppet( role, name )
 #   Store.check_clothing( puppet, name )
 #   Store.uniq_player( player, prefix, name )
+#   Store.last_role( role, what )
+#   Store.add_role_collection( name, what, player )
 #   Store.add_person( name, what, player, prefix )
 #   Store.add_voice( name, voice )
 #   Store.add_puppet( name, puppet )
@@ -509,7 +517,7 @@ class Store
     'SpecialEffect' => 14,
     'Todo' => 15
   }.freeze
-  # list we will collect
+  # list we will collect over all scenes
   COLLECTION_FIELDS = [
     'notes',
     'role_puppets',
@@ -528,6 +536,8 @@ class Store
   attr_reader :items
   # collection list
   attr_reader :collection
+  # current roles list
+  attr_reader :current_roles
   # timeframe object
   attr_reader :timeframe
   # hash of placeholder names
@@ -537,13 +547,14 @@ class Store
   def initialize( timeframe )
     @items = {}
     @collection = {}
+    @current_roles = {}
     ITEM_TYPE_INDEX.each_key do |key|
       @items[ key ] = {}
       @collection[ key ] = {}
       @collection[ "#{key}_count" ] = {}
     end
-    COLLECTION_FIELDS.each do |collection|
-      @collection[ collection ] = {}
+    COLLECTION_FIELDS.each do |field|
+      @collection[ field ] = {}
     end
     @roles = {}
     @timeframe = timeframe
@@ -651,19 +662,17 @@ class Store
   def check_puppet( role, name )
     return nil unless @items[ 'Costume' ].key?( name )
 
-    seen = {}
+    seen = []
     @items[ 'Costume' ][ name ][ :list ].each do |item|
       next if item[ :scene ] != @timeframe.timeframe
 
-      seen[ :role ] = [] unless seen.key?( :role )
-      seen[ :role ].push( item[ :role ] )
+      seen.push( item[ :role ] )
     end
-
-    if seen[ :role ].uniq.size > 1
+    if seen.uniq.size > 1
       return error_message(
         "Puppet for '#{role}' can't be set to '#{name}',",
         "because it's already a Puppet",
-        "of role '#{seen[ :role ].join( ',' )}'"
+        "of role '#{seen.join( ',' )}'"
       )
     end
     nil
@@ -671,6 +680,7 @@ class Store
 
   def check_clothing( puppet, name )
     return nil unless @items[ 'Costume' ].key?( name )
+    return nil if name.casecmp( 'none' ).zero?
 
     seen = {}
     @items[ 'Costume' ][ name ][ :list ].each do |item|
@@ -692,12 +702,36 @@ class Store
 
   # create a uniq player name if needed
   def uniq_player( player, prefix, name )
-    player.strip! unless player.nil?
     if player.nil? || @ignore.key?( player )
       @ignore[ prefix ] += 1
-      player = "#{prefix}_#{name}"
+      return "#{prefix}_#{name}"
     end
-    player
+    player.strip!
+    player.sub( /^\(/, '' ).sub( /\)$/, '' )
+  end
+
+  # track changing players
+  def add_role_collection( name, what, player )
+    @current_roles[ name ] = {} unless @current_roles.key?( name )
+    @current_roles[ name ][ what ] = player
+    return if player.nil?
+
+    @collection[ 'Role' ][ name ] = {} unless @collection[ 'Role' ].key?( name )
+    unless @collection[ 'Role' ][ name ].key?( what )
+      @collection[ 'Role' ][ name ][ what ] = [ player ]
+      return
+    end
+
+    return if @collection[ 'Role' ][ name ][ what ].include?( player )
+
+    @collection[ 'Role' ][ name ][ what ].push( player )
+  end
+
+  # get current player
+  def last_role( role, what )
+    return nil unless @current_roles[ role ].key?( what )
+
+    @current_roles[ role ][ what ]
   end
 
   # add an actor to a role
@@ -705,10 +739,10 @@ class Store
     player = uniq_player( player, prefix, name )
     return player if player.casecmp( 'none' ).zero?
 
-    @collection[ 'Role' ][ name ][ what ] = player
+    add_role_collection( name, what, player )
     add( 'Actor', player, name )
     if what == 'voice'
-      if @collection[ 'Role' ][ name ][ 'player' ] != player
+      if last_role( name, 'player' ) != player
         @timeframe.add( 'Actor', player )
         @timeframe.add_wiki_actor_for( player, name )
       end
@@ -744,7 +778,7 @@ class Store
         'Actor', 'Pers+', player, [ [ role( name ), 'hands' ], actor( player ) ]
       )
     end
-    @collection[ 'Role' ][ name ][ 'hands' ] = uhands
+    add_role_collection( name, 'hands', uhands )
     uhands
   end
 
@@ -773,7 +807,7 @@ class Store
   # add a clothing to a role
   def add_clothing( name, clothing )
     clothing = uniq_player( clothing, 'Costume', name )
-    return nil if clothing.casecmp( 'none' ).zero?
+    return clothing if clothing.casecmp( 'none' ).zero?
 
     add( 'role_costumes', name, clothing )
     add( 'Costume', clothing, name )
@@ -837,7 +871,7 @@ class Store
   def add_role( name, list )
     # p [ 'add_role', name, list ]
     count( 'Role', name )
-    add( 'Role', name, {} )
+    #add( 'Role', name, {} )
     @timeframe.add( 'Role', name )
     player, hands, voice, puppet, clothing = list
     uplayer = add_person( name, 'player', player, 'Actor' )
@@ -903,7 +937,6 @@ end
 #   Report.list_people_assignments
 #   Report.list_people_exports
 #   Report.list_people_people( key )
-#   Report.list_people_scene( key, table )
 #   Report.list_cast
 #   Report.table_caption( title )
 #   Report.html_table( table, title, tag = '' )
@@ -1093,6 +1126,7 @@ class Report
   def html_object_name( name )
     if name.respond_to?( :key? )
       return to_html( name[ :ref ], name[ :name ] ) if name.key?( :ref )
+      return html_escape( name[ :name ] ) if name[ :name ].casecmp( 'none' ).zero?
 
       obj = find_item_of_type( name[ :name ], name[ :type ] )
       return to_html( obj[ :ref ], name[ :name ] )
@@ -1462,25 +1496,26 @@ class Report
         next unless @store.timeframe.timeframes[ scene ].key?( type )
 
         @store.timeframe.timeframes[ scene ][ type ].each do |item|
+	  key = [ type, item ]
           scenes =
-            if builds.key?( item )
-              next if builds[ item ].first.include?( scene )
+            if builds.key?( key )
+              next if builds[ key ].first.include?( scene )
 
-              builds[ item ].first.push( scene )
+              builds[ key ].first.push( scene )
             else
               [ scene ]
             end
-          builds[ item ] = [ scenes, name ]
+          builds[ key ] = [ scenes, name ]
         end
       end
     end
     result = [ TODO_LIST_HEADER ]
     builds2 = builds.sort_by do |item, data|
-      [ data.last, data.first, item.downcase ]
+      [ data.last, data.first, item.last.downcase ]
     end
     builds2.each do |row|
       scenes = row.last.first.map { |s| s.sub( /^Scene /, '' ) }
-      result.push( [ scenes.join( ', ' ), row.last.last, row.first ] )
+      result.push( [ scenes.join( ', ' ), row.last.last, row.first.last ] )
     end
     @todo_list = result
     result
@@ -1714,55 +1749,31 @@ class Report
       return nil if hash[ key ].include?( actor1 ) &&
                     hash[ key ].include?( actor2 )
     end
-    'x'
+    'f'
   end
 
   def list_people_people( key )
     key_list = list_item_keys( key )
     remove_list = []
     columns = [ nil ]
-    columns.concat( key_list )
+    key_list.each do |actor2|
+      next unless actor2.include?( '_' )
+
+      columns.push( actor2 )
+    end
     table = [ columns ]
     key_list.each do |actor|
+      next if actor.include?( '_' )
+
       row = [ actor ]
       key_list.each do |actor2|
+        next unless actor2.include?( '_' )
+
         row.push( check_people_people( key, actor, actor2 ) )
       end
-      if row.compact.size > 1
-        table.push( row )
-      else
-        remove_list.push( key_list.index( actor ) + 1 )
-      end
-    end
-    table.map do |row|
-      remove_list.reverse_each do |i|
-        row.delete_at( i )
-      end
-      row
+      table.push( row )
     end
     table
-  end
-
-  def list_people_scene( key, table )
-    result = [ [ 1, '' ] ]
-    seen = {}
-    table.each do |row|
-      actor = row.first
-      @store.timeframe.timeframes.each_pair do |scene, hash|
-        next unless hash.key?( key )
-        next unless hash[ key ].include?( actor )
-
-        seen[ scene ] = 0 unless seen.key?( scene )
-        seen[ scene ] += 1
-        break
-      end
-    end
-    # pp seen
-    seen.each_pair do |scene, count|
-      result.push( [ count, scene ] )
-    end
-    # pp result
-    result
   end
 
   def merge_cast( cast, actor, action )
@@ -2105,10 +2116,14 @@ class Report
 
   def puts_people_people_table( title, key )
     @html_report << table_caption( 'Disjunct' )
-    @html_report << "<br/>\n"
+    @html_report << '<br>
+<p>legend for table below:<br>
+empty = actor busy<br>
+f = actor free<br>
+</p><br>
+'
     people_people = list_people_people( key )
-    head_row = list_people_scene( key, people_people )
-    @html_report << html_table_r( people_people, title, '', head_row )
+    @html_report << html_table_r( people_people, title, '' )
   end
 
   def find_export_role( type )
@@ -2119,12 +2134,12 @@ class Report
         when 'Role (Voice)'
           next unless entry.key?( 'voice' )
 
-          actions.push( [ type, "#{name}.player", val ] )
+          actions.push( [ type, "#{name}.player", val.join( ', ' ) ] )
           break
         when 'Role (No Voice)'
           next if entry.key?( 'voice' )
 
-          actions.push( [ type, "#{name}.player", val ] )
+          actions.push( [ type, "#{name}.player", val.join( ', ' ) ] )
           break
         when 'Role (Hand)'
           if val.respond_to?( :shift )
@@ -2325,6 +2340,7 @@ end
 #   Parser.add_note( line )
 #   Parser.add_todo( line )
 #   Parser.add_error_note( line )
+#   Parser.strip_none( name )
 #   Parser.change_role_player( role, old_player, player )
 #   Parser.change_role_hand( role, old_hand, hand )
 #   Parser.change_role_voice( role, old_voice, voice )
@@ -2506,7 +2522,9 @@ class Parser
 
   def list_one_person( name )
     @qscript.puts ''
-    @store.collection[ 'Role' ][ name ].each_pair do |key, val|
+pp @store.current_roles[ name ]
+    @store.current_roles[ name ].each_pair do |key, val|
+pp [ :list_one_person, key, val ]
       # p [ 'list_one_person', name, key, val ]
       if val.respond_to?( :shift )
         next if val.empty?
@@ -2516,6 +2534,8 @@ class Parser
           @report.html_p( [ 'Pers+', [ role( name ), key ], actor( hand ) ] )
         end
       else
+        next if val.casecmp( 'none' ).zero?
+
         @qscript.puts "\tperson+ \"#{name}\".#{key} \"#{val}\""
         @report.html_p( [ 'Pers+', [ role( name ), key ], actor( val ) ] )
       end
@@ -2592,6 +2612,8 @@ class Parser
   def drop_person_player( name, what, players )
     if players.respond_to?( :shift )
       return if players.empty?
+    else
+      return if players.casecmp( 'none' ).zero?
     end
 
     @qscript.puts "\tperson- \"#{name}\".#{what}"
@@ -2618,7 +2640,7 @@ class Parser
   def drop_person( name )
     @qscript.puts ''
     drop_person_props( name )
-    @store.collection[ 'Role' ][ name ].each_pair do |what, players|
+    @store.current_roles[ name ].each_pair do |what, players|
       drop_person_player( name, what, players )
     end
     clothing = @store.collection[ 'role_costumes' ][ name ]
@@ -2804,6 +2826,10 @@ class Parser
       f == '' ? nil : f
     end
     role = list2[ 1 ]
+    if role.nil?
+      add_error_note( "Skipping Empty Role" )
+      return
+    end
     player = list2[ 2 ]
     list2[ 3 ] = player if list2[ 3 ].nil?
     list2[ 3 ] =
@@ -2813,6 +2839,7 @@ class Parser
         list2[ 3 ].split( ', ' )
       end
     list2[ 4 ] = player if list2[ 4 ].nil?
+
     list = merge_role( role, list2[ 2 .. -1 ] )
     @store.add_role( role, list )
     # pp [ 'parse_table_role', role, list ]
@@ -3407,6 +3434,8 @@ class Parser
     add_error_note(
       "INFO: Player changed for '#{role}': '#{old_player}' -> '#{player}'"
     )
+    # set as new default
+    @store.add_role_collection( role, 'player', player )
   end
 
   def change_role_hand( role, old_hand, hand )
@@ -3416,8 +3445,10 @@ class Parser
     return if $debug.zero?
 
     add_error_note(
-      "INFO: Hands changed for '#{role}': '#{old_hand}' -> '#{hand}'"
+      "INFO: Hands changed for '#{role}': '#{old_hand.join( ', ' )}' -> '#{hand.join( ', ' )}'"
     )
+    # set as new default
+    @store.add_role_collection( role, 'hands', hand )
   end
 
   def change_role_voice( role, old_voice, voice )
@@ -3429,6 +3460,8 @@ class Parser
     add_error_note(
       "INFO: Voice changed for '#{role}': '#{old_voice}' -> '#{voice}'"
     )
+    # set as new default
+    @store.add_role_collection( role, 'voice', voice )
   end
 
   def change_role_puppet( role, old_puppet, puppet )
@@ -3440,24 +3473,40 @@ class Parser
     add_error_note(
       "INFO: Puppet changed for '#{role}': '#{old_puppet}' -> '#{puppet}'"
     )
+    # set as new default
+    puppet = nil if clothing.casecmp( 'none' ).zero?
+    @store.collection[ 'role_puppets' ][ role ] = puppet unless puppet.nil?
+  end
+
+  def strip_none( name )
+    return nil if name.nil?
+    return name unless name.respond_to?( :casecmp ) # skip arrays
+    return nil if name == ''
+    return nil if name.casecmp( 'none' ).zero?
+
+    name
   end
 
   def change_role_clothing( role, old_clothing, clothing )
-    return if old_clothing.nil?
-    return if old_clothing == ''
-    return if old_clothing == clothing
+    clothing2 = strip_none( clothing )
+    old_clothing2 = strip_none( old_clothing )
+pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
+    return if old_clothing2 == clothing2
     return if $debug.zero?
 
+    old_clothing2 = 'None' if old_clothing.nil?
     add_error_note(
-      "INFO: Costume changed for '#{role}': '#{old_clothing}' -> '#{clothing}'"
+      "INFO: Costume changed for '#{role}': '#{old_clothing2}' -> '#{clothing}'"
     )
+    # set as new default
+    @store.collection[ 'role_costumes' ][ role ] = clothing2
   end
 
   def old_role( role, list )
     old_list = [
-      @store.collection[ 'Role' ][ role ][ 'player' ],
-      @store.collection[ 'Role' ][ role ][ 'hands' ],
-      @store.collection[ 'Role' ][ role ][ 'voice' ],
+      @store.last_role( role, 'player' ),
+      @store.last_role( role, 'hands' ),
+      @store.last_role( role, 'voice' ),
       @store.collection[ 'role_puppets' ][ role ],
       @store.collection[ 'role_costumes' ][ role ]
     ]
@@ -3498,9 +3547,9 @@ class Parser
       # assume nothing changed
       # @store.update_role( name, @store.collection )
       list = [
-        @store.collection[ 'Role' ][ name ][ 'player' ],
-        @store.collection[ 'Role' ][ name ][ 'hands' ],
-        @store.collection[ 'Role' ][ name ][ 'voice' ],
+        @store.last_role( role, 'player' ),
+        @store.last_role( role, 'hands' ),
+        @store.last_role( role, 'voice' ),
         @store.collection[ 'role_puppets' ][ name ],
         @store.collection[ 'role_costumes' ][ name ]
       ]
@@ -3524,11 +3573,11 @@ class Parser
     @qscript.puts_key( qscript_key, name, text )
     @report.puts2_key( result_key, name, text )
     @store.timeframe.add_list_text( 'Role', result_key, name, [ name, text ] )
-    player = @store.collection[ 'Role' ][ name ][ 'player' ]
+    player = @store.last_role( name, 'player' )
     @store.timeframe.add_list_text(
       'Actor', result_key, player, [ name, text ]
     )
-    hands = @store.collection[ 'Role' ][ name ][ 'hands' ]
+    hands = @store.last_role( name, 'hands' )
     hands.each do |hand|
       next if hand == player
 
@@ -3536,7 +3585,7 @@ class Parser
         'Actor', result_key, hand, [ name, text ]
       )
     end
-    voice = @store.collection[ 'Role' ][ name ][ 'voice' ]
+    voice = @store.last_role( name, 'voice' )
     if voice != player
       @store.timeframe.add_list_text(
         'Actor', result_key, voice, [ name, text ]
@@ -3645,9 +3694,9 @@ class Parser
       text.sub!( /^"/, '' )
     end
     @store.timeframe.add_spoken( 'Role', name )
-    player = @store.collection[ 'Role' ][ name ][ 'player' ]
+    player = @store.last_role( name, 'player' )
     @store.timeframe.add_spoken( 'Actor', player )
-    voice = @store.collection[ 'Role' ][ name ][ 'voice' ]
+    voice = @store.last_role( name, 'voice' )
     if voice != player && !voice.nil?
       @store.timeframe.add_spoken( 'Actor', voice )
     end
@@ -3761,7 +3810,7 @@ class Parser
     when '== DIALOG ==', '== DIALOGUE =='
       @section = nil
       return true
-    when '== TECH PREROLL =='
+    when '== TECH PREROLL ==', '== TECH PREROLL 🧻 =='
       @section = 'PREROLL'
       return true
     when /^\^/ # table head
@@ -3967,8 +4016,13 @@ class Parser
   def parse_lines( filename, lines, version )
     @section = nil
     @version = version
+    error_linenr = 0
+    @error_line = nil
     parse_title( filename )
     lines.each do |line|
+      error_linenr += 1
+      @error_line = "#{error_linenr}:#{line}"
+      puts @error_line unless $debug.zero?
       line.sub!( /\\\\$/, '' ) # remove DokuWiki linebreak
       line.rstrip!
       line = replace_text( line )
@@ -4013,7 +4067,7 @@ html_costumes << '<body>'
 html_costumes << costumes
 file_put_contents( 'clothes.html', html_costumes )
 file_put_contents( WIKI_ACTORS_FILE,
-                   JSON.dump( parser.store.timeframe.wiki_highlite ) )
+                   JSON.pretty_generate( parser.store.timeframe.wiki_highlite ) )
 
 CSV.open( TODO_LIST_FILE, 'wb', col_sep: ';' ) do |csv|
   parser.report.todo_list.each do |row|
