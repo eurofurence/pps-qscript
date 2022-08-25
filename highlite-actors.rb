@@ -34,10 +34,13 @@ EFPATH = 'ef26:events:pps:qscript'.freeze
 # css highlite with color
 # HIGHLITE = ' style="background-color:#FFFF00;"'.freeze
 HIGHLITE = ' class="highlite"'.freeze
+# css changed highlite with color
+NEWHIGHLITE = ' class="newhighlite"'.freeze
 # css highlite with color
 CHANGED = ' class="changed"'.freeze
 
 $debug = 0
+@ignore_changed = true
 
 # check if downloaded file has changed
 def downloaded?( filename, buffer )
@@ -184,34 +187,83 @@ end
 
 # modify line when an actor was found
 def parse_patterns( scene, actor, line )
-  unless @wiki_highlite[ scene ].key?( actor )
-    add_line( line )
-    return
-  end
-
-  found = match_pattern2( scene, actor, line )
-  if found
-    add_tag_line( line, "<p#{HIGHLITE}>" )
-  else
-    add_line( line )
-  end
+  return '' unless @wiki_highlite[ scene ].key?( actor )
+  return '' unless match_pattern2( scene, actor, line )
+  
+  HIGHLITE
 end
+
+def parse_changed( scene, line )
+  return '' if @ignore_changed
+  return '' if @changed[ scene ].key?( line )
+
+  CHANGED
+end
+
+def highlite_patterns( scene, actor, line )
+   changed = parse_changed( scene, line )
+   highlite = parse_patterns( scene, actor, line )
+   if changed == ''
+     if highlite == ''
+       add_line( line )
+       return
+     end
+     add_tag_line( line, "<p#{highlite}>" )
+     return
+   end
+   if highlite == ''
+     add_tag_line( line, "<p#{changed}>" )
+     return
+   end
+
+   add_tag_line( line, "<p#{NEWHIGHLITE}>" )
+end
+
+# @changed[ scene ][ line ]
 
 # modify table row when an actor was found
 def table_line( scene, actor, line )
   sections = line.split( '<table' )
   line2 = sections.first
-  parse_patterns( scene, actor, line2 )
+  highlite_patterns( scene, actor, line2 )
   sections[ 1 .. -1 ].each do |table|
     rows = table.split( '<tr' )
     add_tag_line( rows.first, '<table' )
     rows[ 1 .. -1 ].each do |row|
       if /[^a-z0-9]#{actor}[^a-z0-9]/i =~ row
         add_tag_line( row, "<tr#{HIGHLITE}" )
-      else
-        add_tag_line( row, '<tr' )
+        next
       end
+
+      if actor =~ /'/
+        pattern2 = actor.gsub( "'", '&#039;' )
+        if /[^a-z0-9]#{pattern2}[^a-z0-9]/i =~ row
+          add_tag_line( row, "<tr#{HIGHLITE}" )
+          next
+        end
+      end
+
+      add_tag_line( row, '<tr' )
     end
+  end
+end
+
+def read_changed
+  @changed = {}
+  scene = nil
+  lines = File.read( CHANGED_HTML ).split( '<p>' )
+  lines.each do |line|
+    case line
+    when /class="plugin_include_content /
+      scene = line.slice( /"plugin_include_content [^ {]+/ )
+      scene = scene.split( ':' ).last.delete( '"' ).capitalize
+      scene << '.wiki'
+      next
+    end
+    next if scene.nil?
+ 
+    @changed[ scene ] = {} unless @changed.key?( scene )
+    @changed[ scene ][ line ] = true
   end
 end
 
@@ -262,11 +314,12 @@ def build_output( actor )
       next
     end
 
-    parse_patterns( scene, actor, line )
+    highlite_patterns( scene, actor, line )
   end
   save_actor( actor )
 end
 
+read_changed
 @wiki_highlite = JSON.parse( File.read( WIKI_ACTORS ) )
 # pp @wiki_highlite
 @seen_actors = {}

@@ -2,6 +2,7 @@
 
 SRC!=		ls *scene*.wiki
 ACTORS_HTML!=	ls actors/*.html
+DDATE!=		date +%Y-%m-%d
 
 ACTORS_HTMLS=	${ACTORS_HTML:S/.html/.html,/g:S/,$//}
 ACTORS_PDF=	${ACTORS_HTML:S/html/pdf/g}
@@ -96,5 +97,8 @@ unhold:
 
 dump:
 	/media/furry/fp/bin/dump-json.rb wiki_actors.json
+
+save::
+	rsync -a OLD/ all.html all.html.orig HISTORY/${DDATE}/
 
 # eof

@@ -29,7 +29,7 @@ dokuwiki.upload_dir = 'UPLOAD'
 old = Dir.getwd
 unless ARGV.empty?
   ARGV.each do |filename|
-    path = EFPATH.to_s
+    path = "#{EFPATH}"
     if /\//i =~ filename
       dir = filename.split( '/' ).first
       path << ':'

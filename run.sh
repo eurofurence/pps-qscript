@@ -50,7 +50,14 @@ echo "upload"
 case "${1}" in
 auto)
 	./upload-wiki.rb
-	# ./upload-wiki.rb actors/*.pdf
+	if test -f hold-actors.txt
+	then
+		echo "upload actors on hold."
+		exit 0
+	fi
+	./upload-wiki.rb actors/*.pdf
+	./upload-wiki.rb actors/*.html
+	./upload-wiki.rb actors.wiki actors-html.wiki
 	;;
 esac
 
