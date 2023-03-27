@@ -3,7 +3,7 @@
 # = fetch-wiki.rb
 #
 # Author::    Dirk Meyer
-# Copyright:: Copyright (c) 2018-2021 Dirk Meyer
+# Copyright:: Copyright (c) 2018-2023 Dirk Meyer
 # License::   Distributes under the same terms as Ruby
 #
 
@@ -17,14 +17,14 @@ require 'dokuwiki'
 # hostname of EF dokuwiki
 EFHOST = 'wiki.eurofurence.org'.freeze
 # path inside EF dokuwiki
-EFPATH = 'ef26:events:pps:script:'.freeze
+EFPATH = 'ef27:events:pps:script:'.freeze
 
 user, pass = NetRc.login_data( EFHOST )
 # p [ user, pass ]
 exit if user.nil?
 
 dokuwiki = DokuWiki::DokuWikiAccess.new( EFHOST )
-dokuwiki.login( 'ef26:events:pps:qscript', user, pass )
+dokuwiki.login( 'ef27:events:pps:qscript', user, pass )
 dokuwiki.media_dir = 'media'
 
 # example paths:

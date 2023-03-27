@@ -3,7 +3,7 @@
 # = upload-wiki.rb
 #
 # Author::    Dirk Meyer
-# Copyright:: Copyright (c) 2018-2021 Dirk Meyer
+# Copyright:: Copyright (c) 2018-2022 Dirk Meyer
 # License::   Distributes under the same terms as Ruby
 #
 
@@ -17,7 +17,7 @@ require 'dokuwiki'
 # hostname of EF dokuwiki
 EFHOST = 'wiki.eurofurence.org'.freeze
 # path inside EF dokuwiki
-EFPATH = 'ef26:events:pps:qscript'.freeze
+EFPATH = 'ef27:events:pps:qscript'.freeze
 
 user, pass = NetRc.login_data( EFHOST )
 exit if user.nil?
@@ -52,7 +52,8 @@ end
   'all.wiki',
   'clothes.pdf',
   'all.pdf',
-  'todo-list.csv'
+  'todo-list.csv',
+  'assignment-list.csv'
 ].each do |filename|
   dokuwiki.upload_file( EFPATH, filename )
 end

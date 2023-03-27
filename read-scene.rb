@@ -3,7 +3,7 @@
 # = read-scene.rb
 #
 # Author::    Dirk Meyer
-# Copyright:: Copyright (c) 2018-2021 Dirk Meyer
+# Copyright:: Copyright (c) 2018-2023 Dirk Meyer
 # License::   Distributes under the same terms as Ruby
 #
 
@@ -28,6 +28,8 @@ WIKI_ACTORS_FILE = 'wiki_actors.json'.freeze
 TODO_LIST_FILE = 'todo-list.csv'.freeze
 # header for todo list
 TODO_LIST_HEADER = [ 'Scene', 'Category', 'Item' ].freeze
+# output for assignment list
+ASSIGNMENT_LIST_FILE = 'assignment-list.csv'.freeze
 # regular expression for matching names
 MATCH_NAME = '[A-Za-z0-9_-]+'.freeze
 # regular expression for matching names within a tag
@@ -143,6 +145,19 @@ def read_subs( filename )
     subs[ pattern ] = text
   end
   subs
+end
+
+# read puppet data from given file
+def read_puppet( filename ) 
+  $puppet_pool = {}
+  $puppet_builders = {}
+  File.read( filename ).split( "\n" ).each do |line|
+    next if /^#/ =~ line
+
+    name, builder, image = line.split( ';', 3 )
+    $puppet_pool[ name ] = image
+    $puppet_builders[ name ] = builder
+  end
 end
 
 # === Class Functions
@@ -932,6 +947,7 @@ end
 #   Report.hand_props_actors( scene, prop_type )
 #   Report.list_hand_props
 #   Report.people_assignments( listname, person )
+#   Report.merge_merge_plain( assignments, hactor, action )
 #   Report.merge_assignments( assignments, actor, action )
 #   Report.merge_assignments_role( assignments, actor, entry )
 #   Report.list_people_assignments
@@ -1048,6 +1064,8 @@ class Report
   attr_accessor :puppet_costumes
   # table of todo list
   attr_accessor :todo_list
+  # table of assignment list
+  attr_accessor :assignment_list
 
   # create a report
   def initialize( store, qscript )
@@ -1614,8 +1632,7 @@ class Report
     found
   end
 
-  def merge_assignments( assignments, actor, action )
-    hactor = actor( actor )
+  def merge_merge_plain( assignments, hactor, action )
     if assignments.key?( action )
       assignments[ action ].push( hactor ) \
         unless assignments[ action ].include?( hactor )
@@ -1623,6 +1640,20 @@ class Report
       assignments[ action ] = [ hactor ]
     end
   end
+
+  def merge_assignments( assignments, actor, action )
+    hactor = actor( actor )
+    merge_merge_plain( assignments, hactor, action )
+  end
+
+  def merge_builder( assignments, actor, action )
+    if assignments.key?( action ) 
+      assignments[ action ].push( actor ) \
+        unless assignments[ action ].include?( actor )
+    else  
+      assignments[ action ] = [ actor ]
+    end
+  end   
 
   def merge_assignments_role( assignments, actor, entry )
     if entry.key?( :player )
@@ -1800,6 +1831,13 @@ class Report
           merge_cast( cast, entry[ :voice ], role )
         end
       end
+    end
+
+    @store.items[ 'Puppet' ].each_pair do |puppet, h|
+      next unless $puppet_builders.key?( puppet )
+
+      builder = $puppet_builders[ puppet ]
+      merge_merge_plain( cast, builder, 'Puppet Builders' )
     end
     cast
   end
@@ -2233,6 +2271,7 @@ f = actor free<br>
       row.push( rowinfo[ 2 ] )
       table.push( row )
     end
+    @assignment_list = table
     @html_report << html_table_r( table, title )
     table
   end
@@ -2517,6 +2556,14 @@ class Parser
 
   def parse_single_backdrop( line )
     position, text = line.split( ': ', 2 )
+    if text.nil?
+      position, text = line.split( ':', 2 )
+      if text.nil?
+        add_error_note( "Unable to parse backdrop: #{line}" )
+      else
+        add_error_note( "Backdrop needs space after colon: #{line}" )
+      end
+    end
     add_single_backdrop( position, text.strip )
   end
 
@@ -2827,7 +2874,7 @@ pp [ :list_one_person, key, val ]
     end
     role = list2[ 1 ]
     if role.nil?
-      add_error_note( "Skipping Empty Role" )
+      add_error_note( "Skipping Empty Role: #{line}" )
       return
     end
     player = list2[ 2 ]
@@ -3547,9 +3594,9 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
       # assume nothing changed
       # @store.update_role( name, @store.collection )
       list = [
-        @store.last_role( role, 'player' ),
-        @store.last_role( role, 'hands' ),
-        @store.last_role( role, 'voice' ),
+        @store.last_role( name, 'player' ),
+        @store.last_role( name, 'hands' ),
+        @store.last_role( name, 'voice' ),
         @store.collection[ 'role_puppets' ][ name ],
         @store.collection[ 'role_costumes' ][ name ]
       ]
@@ -3644,6 +3691,9 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
     case name
     when /^#{MATCH_NAME}:*$/
       list.push( name.sub( ':', '' ) )
+    when /^#{MATCH_NAME}'s:*$/
+      name = name.sub( '\'s', '' )
+      list.push( name.sub( ':', '' ) )
     else
       add_error_note( "Error in Role: '#{name}', #{text}" )
     end
@@ -3730,7 +3780,8 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
 
   def replace_text( line )
     $subs.each_pair do |pattern, text|
-      found = line.gsub!( /#{pattern}/, text )
+      # found = line.gsub!( /#{pattern}/, text )
+      found = line.gsub!( pattern, text )
       next if found.nil?
 
       $subs_count[ pattern ] += 1
@@ -4038,7 +4089,7 @@ end
 $subs = read_subs( SUBS_CONFIG_FILE )
 $subs_count = $subs.transform_values { |_val| 0 }
 
-$puppet_pool = read_subs( PUPPET_POOL_FILE )
+read_puppet( PUPPET_POOL_FILE )
 qscript = QScript.new
 timeframe = Timeframe.new( qscript )
 store = Store.new( timeframe )
@@ -4071,6 +4122,12 @@ file_put_contents( WIKI_ACTORS_FILE,
 
 CSV.open( TODO_LIST_FILE, 'wb', col_sep: ';' ) do |csv|
   parser.report.todo_list.each do |row|
+    csv << row
+  end
+end
+
+CSV.open( ASSIGNMENT_LIST_FILE, 'wb', col_sep: ';' ) do |csv|
+  parser.report.assignment_list.each do |row|
     csv << row
   end
 end

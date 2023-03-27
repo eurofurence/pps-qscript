@@ -66,7 +66,7 @@ puppet_pool.csv:	puppet_pool.rb puppet_pool.wiki media/smileys.txt
 	./get-media.sh
 
 all.html:	${SRC} UPLOAD/all.wiki
-	./fetch-wiki.rb ef26:events:pps:qscript:all.html
+	./fetch-wiki.rb ef27:events:pps:qscript:all.html
 
 tidy.html:	out.html
 	-tidy4 -wrap 5000 out.html > tidy.html

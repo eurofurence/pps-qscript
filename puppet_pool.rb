@@ -3,7 +3,7 @@
 # = puppet_pool.rb
 #
 # Author::    Dirk Meyer
-# Copyright:: Copyright (c) 2019-2021 Dirk Meyer
+# Copyright:: Copyright (c) 2019-2023 Dirk Meyer
 # License::   Distributes under the same terms as Ruby
 #
 
@@ -65,7 +65,7 @@ end
 
 # search for all alias names of a puppet
 def read_pool( filename )
-  result = [ [ 'Internal name', 'Picture' ] ]
+  result = [ [ 'Internal name', 'Builder', 'Picture' ] ]
   p filename
   fields = []
   seen = {}
@@ -88,6 +88,7 @@ def read_pool( filename )
     # p [ h[ 'Internal name' ], h[ 'Pictures' ] ]
     # p [ h[ 'Internal name' ], get_first_picture( h[ 'Pictures' ] ) ]
     iname = h[ 'Internal name' ]
+    builder = h[ 'Builder' ]
     next if iname.nil?
     next if seen.key?( iname )
 
@@ -97,7 +98,7 @@ def read_pool( filename )
       next if seen.key?( name )
 
       seen[ name ] = true
-      result.push( [ name, get_first_picture( h[ 'Pictures' ] ) ] )
+      result.push( [ name, builder, get_first_picture( h[ 'Pictures' ] ) ] )
     end
   end
   # pp result

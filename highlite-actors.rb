@@ -3,7 +3,7 @@
 # = highlite-actors.rb
 #
 # Author::    Dirk Meyer
-# Copyright:: Copyright (c) 2020-2021 Dirk Meyer
+# Copyright:: Copyright (c) 2020-2023 Dirk Meyer
 # License::   Distributes under the same terms as Ruby
 #
 
@@ -30,7 +30,7 @@ MATCH_NAME = '[A-Za-z0-9_-]+'.freeze
 # hostname of EF dokuwiki
 EFHOST = 'wiki.eurofurence.org'.freeze
 # path inside EF dokuwiki
-EFPATH = 'ef26:events:pps:qscript'.freeze
+EFPATH = 'ef27:events:pps:qscript'.freeze
 # css highlite with color
 # HIGHLITE = ' style="background-color:#FFFF00;"'.freeze
 HIGHLITE = ' class="highlite"'.freeze
