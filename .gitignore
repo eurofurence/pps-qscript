@@ -18,12 +18,14 @@ doc
 final_dinoex
 gems.txt
 htmls
+hold*
 numbered-qscript.txt
 media
+out.*
 project
 project.old
 qscript.txt
-hold*
-out.*
 subs.*
+sync.sh
+roles.*
 test.*
