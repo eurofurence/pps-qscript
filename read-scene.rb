@@ -137,14 +137,22 @@ end
 
 # read patters for replacements from given file
 def read_subs( filename )
-  subs = {}
+  $subs = {}
+  $subs_count = {}
+  scene = 'global'
   File.read( filename ).split( "\n" ).each do |line|
-    next if /^#/ =~ line
+    next if line =~ /^#/
+
+    unless line.include?( ';' )
+      scene = line.delete( '[]' )
+      next
+    end
 
     pattern, text = line.split( ';', 2 )
-    subs[ pattern ] = text
+    $subs[ scene ] = {} unless $subs.key?( scene )
+    $subs[ scene ][ pattern ] = text
+    $subs_count[ pattern ] = 0
   end
-  subs
 end
 
 # read puppet data from given file
@@ -2399,7 +2407,7 @@ end
 #   Parser.print_spoken( name, comment, text )
 #   Parser.print_spoken_roles( name, comment, text )
 #   Parser.print_spoken_mutiple( line )
-#   Parser.replace_text( line )
+#   Parser.replace_text( line, filename )
 #   Parser.close_scene
 #   Parser.print_unknown_line( line )
 #   Parser.parse_section( line )
@@ -3682,6 +3690,7 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
   def parse_role_name( text )
     rest = text.gsub( / *\[[^\]]*\]/, '' )
     rest.gsub!( /^The /, '' )
+    rest.gsub!( /^A /, '' )
     list = []
     while /^#{MATCH_NAME}( and |, *)/ =~ rest
       name, rest = rest.split( / and |, */, 2 )
@@ -3778,8 +3787,10 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
     end
   end
 
-  def replace_text( line )
-    $subs.each_pair do |pattern, text|
+  def replace_text( line, filename )
+    return line unless $subs.key?( filename )
+
+    $subs[ filename ].each_pair do |pattern, text|
       # found = line.gsub!( /#{pattern}/, text )
       found = line.gsub!( pattern, text )
       next if found.nil?
@@ -4076,7 +4087,8 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
       puts @error_line unless $debug.zero?
       line.sub!( /\\\\$/, '' ) # remove DokuWiki linebreak
       line.rstrip!
-      line = replace_text( line )
+      line = replace_text( line, filename )
+      line = replace_text( line, 'global' )
       next if parse_section( line )
 
       line.strip!
@@ -4086,9 +4098,7 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
   end
 end
 
-$subs = read_subs( SUBS_CONFIG_FILE )
-$subs_count = $subs.transform_values { |_val| 0 }
-
+read_subs( SUBS_CONFIG_FILE )
 read_puppet( PUPPET_POOL_FILE )
 qscript = QScript.new
 timeframe = Timeframe.new( qscript )
