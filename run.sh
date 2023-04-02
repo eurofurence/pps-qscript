@@ -1,7 +1,7 @@
 #!/bin/sh
 LANG=de_DE.UTF-8
 export LANG
-cd /usr/home/dm/Hay || exit 65
+cd "${HOME}/pps-qscript" || exit 65
 set -e
 case "${1}" in
 auto)
