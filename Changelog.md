@@ -1,4 +1,7 @@
 
+## 2023-04-02
+ * limit substitutions to one scene
+
 ## 2023-03-26
  * namespace ef27
  * Self-Assignment, CSV Export
