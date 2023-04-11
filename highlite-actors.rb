@@ -10,7 +10,6 @@
 require 'cgi'
 require 'json'
 require 'fileutils'
-require 'pp'
 
 $: << '.'
 
@@ -189,7 +188,7 @@ end
 def parse_patterns( scene, actor, line )
   return '' unless @wiki_highlite[ scene ].key?( actor )
   return '' unless match_pattern2( scene, actor, line )
-  
+
   HIGHLITE
 end
 
@@ -201,22 +200,22 @@ def parse_changed( scene, line )
 end
 
 def highlite_patterns( scene, actor, line )
-   changed = parse_changed( scene, line )
-   highlite = parse_patterns( scene, actor, line )
-   if changed == ''
-     if highlite == ''
-       add_line( line )
-       return
-     end
-     add_tag_line( line, "<p#{highlite}>" )
-     return
-   end
-   if highlite == ''
-     add_tag_line( line, "<p#{changed}>" )
-     return
-   end
+  changed = parse_changed( scene, line )
+  highlite = parse_patterns( scene, actor, line )
+  if changed == ''
+    if highlite == ''
+      add_line( line )
+      return
+    end
+    add_tag_line( line, "<p#{highlite}>" )
+    return
+  end
+  if highlite == ''
+    add_tag_line( line, "<p#{changed}>" )
+    return
+  end
 
-   add_tag_line( line, "<p#{NEWHIGHLITE}>" )
+  add_tag_line( line, "<p#{NEWHIGHLITE}>" )
 end
 
 # @changed[ scene ][ line ]
@@ -226,10 +225,10 @@ def table_line( scene, actor, line )
   sections = line.split( '<table' )
   line2 = sections.first
   highlite_patterns( scene, actor, line2 )
-  sections[ 1 .. -1 ].each do |table|
+  sections[ 1 .. ].each do |table|
     rows = table.split( '<tr' )
     add_tag_line( rows.first, '<table' )
-    rows[ 1 .. -1 ].each do |row|
+    rows[ 1 .. ].each do |row|
       if /[^a-z0-9]#{actor}[^a-z0-9]/i =~ row
         add_tag_line( row, "<tr#{HIGHLITE}" )
         next
@@ -261,7 +260,7 @@ def read_changed
       next
     end
     next if scene.nil?
- 
+
     @changed[ scene ] = {} unless @changed.key?( scene )
     @changed[ scene ][ line ] = true
   end

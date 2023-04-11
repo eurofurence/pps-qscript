@@ -7,8 +7,6 @@
 # License::   Distributes under the same terms as Ruby
 #
 
-require 'pp'
-
 $: << '.'
 
 require 'netrc'
@@ -29,7 +27,7 @@ dokuwiki.upload_dir = 'UPLOAD'
 old = Dir.getwd
 unless ARGV.empty?
   ARGV.each do |filename|
-    path = "#{EFPATH}"
+    path = EFPATH.to_s
     if /\//i =~ filename
       dir = filename.split( '/' ).first
       path << ':'

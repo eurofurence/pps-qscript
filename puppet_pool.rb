@@ -7,8 +7,6 @@
 # License::   Distributes under the same terms as Ruby
 #
 
-require 'pp'
-
 $: << '.'
 
 # input filename with dokuwiki syntax

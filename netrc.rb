@@ -21,7 +21,7 @@
 module NetRc
   class << self
     # Path to .netrc file
-    NETRC = "#{ENV[ 'HOME' ]}/.netrc".freeze
+    NETRC = "#{Dir.home}/.netrc".freeze
 
     # Get login data for hostname
     def login_data( hostname )
