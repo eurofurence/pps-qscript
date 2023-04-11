@@ -10,7 +10,6 @@
 require 'cgi'
 require 'json'
 require 'csv'
-require 'pp'
 
 $: << '.'
 
@@ -156,7 +155,7 @@ def read_subs( filename )
 end
 
 # read puppet data from given file
-def read_puppet( filename ) 
+def read_puppet( filename )
   $puppet_pool = {}
   $puppet_builders = {}
   File.read( filename ).split( "\n" ).each do |line|
@@ -191,7 +190,7 @@ class RolesConfig
       scene2, group = list[ 0 .. 1 ]
       next if scene2 != scene
 
-      roles = list[ 2 .. -1 ]
+      roles = list[ 2 .. ]
       p [ scene, group, '=', roles ]
       @roles_map[ group ] = roles
       @roles_seen[ group ] = 0
@@ -302,7 +301,6 @@ end
 #   Timeframe.add_list_text( storekey, reportkey, name, text )
 #   Timeframe.add_list( storekey, reportkey, token, name )
 #   Timeframe.add_prop( storekey, reportkey, token, list )
-#   Timeframe.count_spoken( key, name )
 #   Timeframe.add_spoken( name )
 #   Timeframe.list( key )
 class Timeframe
@@ -468,19 +466,6 @@ class Timeframe
     return if reportkey == 'HanP'
 
     add_list_text( 'Puppet', reportkey2, puppet, line )
-  end
-
-  # count a spoken line
-  def count_spoken( key, name )
-    @timeframes_lines[ key ] = {} unless @timeframes_lines.key?( key )
-    if @timeframes_lines[ key ].key?( name )
-      pos = @timeframes_lines[ key ][ name ].index( '#' )
-      return unless pos.nil?
-
-      @timeframes_lines[ key ][ name ].push( '#' )
-      return
-    end
-    @timeframes_lines[ key ][ name ] = [ '#' ]
   end
 
   # add a spoken line to the current timeframe
@@ -894,7 +879,7 @@ class Store
   def add_role( name, list )
     # p [ 'add_role', name, list ]
     count( 'Role', name )
-    #add( 'Role', name, {} )
+    # add( 'Role', name, {} )
     @timeframe.add( 'Role', name )
     player, hands, voice, puppet, clothing = list
     uplayer = add_person( name, 'player', player, 'Actor' )
@@ -949,18 +934,31 @@ end
 #   Report.list_quoted( list, prefix, type )
 #   Report.list_unsorted( list, type )
 #   Report.list( hash, type )
+#   Report.catalog
+#   Report.timeframe_list_item( hash )
+#   Report.person_scene_count( scene, type, name )
+#   Report.timeframe_list_spoken( type, name, scene )
+#   Report.timeframe_list
+#   Report.prefix_by_title( title )
+#   Report.person_count( listname, name )
+#   Report.person_spoken_count( type, name )
 #   Report.catalog_item
 #   Report.puts_timeframe
 #   Report.list_builds2
+#   Report.search_hands( scene, prop )
 #   Report.hand_props_actors( scene, prop_type )
 #   Report.list_hand_props
 #   Report.people_assignments( listname, person )
 #   Report.merge_merge_plain( assignments, hactor, action )
 #   Report.merge_assignments( assignments, actor, action )
+#   Report.merge_builder( assignments, actor, action )
 #   Report.merge_assignments_role( assignments, actor, entry )
 #   Report.list_people_assignments
+#   Report.merge_export( assignments, actor, action )
+#   Report.merge_export_role( assignments, actor, entry )
 #   Report.list_people_exports
 #   Report.list_people_people( key )
+#   Report.merge_cast( cast, actor, action )
 #   Report.list_cast
 #   Report.table_caption( title )
 #   Report.html_table( table, title, tag = '' )
@@ -977,6 +975,16 @@ end
 #   Report.puppet_use_data( key )
 #   Report.puppet_use_costumes( key )
 #   Report.puts_use_table( title, table )
+#   Report.puts_builds2_table( title )
+#   Report.puts_hands_table( title )
+#   Report.puts_assignments_table( title )
+#   Report.puts_people_people_table( title, key )
+#   Report.find_export_role( type )
+#   Report.columns_and_rows2( key )
+#   Report.puts_people_export( title, key )
+#   Report.not_spoken?( type, text )
+#   Report.export_assignment
+#   Report.puts_cast_table( title )
 #   Report.puts_tables
 #   Report.puppet_image( puppet )
 #   Report.save_html( filename )
@@ -1226,7 +1234,7 @@ class Report
       end
     end
 
-    item[ 0 .. 0 ].downcase + citem[ 1 .. -1 ].delete( ' "-' )
+    item[ 0 .. 0 ].downcase + citem[ 1 .. ].delete( ' "-' )
   end
 
   # generate a list entry for an item
@@ -1522,7 +1530,7 @@ class Report
         next unless @store.timeframe.timeframes[ scene ].key?( type )
 
         @store.timeframe.timeframes[ scene ][ type ].each do |item|
-	  key = [ type, item ]
+          key = [ type, item ]
           scenes =
             if builds.key?( key )
               next if builds[ key ].first.include?( scene )
@@ -1570,7 +1578,9 @@ class Report
 
       seen[ prop ] = true
       hands = search_hands( scene, prop )
-      hands.push( '?' ) if hands.empty?
+      # hands.push( '?' ) if hands.empty?
+      next if hands.empty?
+
       act = hands.join( ', ' )
       next if act.casecmp( 'none' ).zero?
 
@@ -1655,13 +1665,13 @@ class Report
   end
 
   def merge_builder( assignments, actor, action )
-    if assignments.key?( action ) 
+    if assignments.key?( action )
       assignments[ action ].push( actor ) \
         unless assignments[ action ].include?( actor )
-    else  
+    else
       assignments[ action ] = [ actor ]
     end
-  end   
+  end
 
   def merge_assignments_role( assignments, actor, entry )
     if entry.key?( :player )
@@ -1793,7 +1803,6 @@ class Report
 
   def list_people_people( key )
     key_list = list_item_keys( key )
-    remove_list = []
     columns = [ nil ]
     key_list.each do |actor2|
       next unless actor2.include?( '_' )
@@ -1841,7 +1850,7 @@ class Report
       end
     end
 
-    @store.items[ 'Puppet' ].each_pair do |puppet, h|
+    @store.items[ 'Puppet' ].each_pair do |puppet, _h|
       next unless $puppet_builders.key?( puppet )
 
       builder = $puppet_builders[ puppet ]
@@ -2179,11 +2188,16 @@ f = actor free<br>
         case type
         when 'Role (Voice)'
           next unless entry.key?( 'voice' )
+          # Skip roles without spoken lines
+          next unless person_spoken_count( 'Role', name ).positive?
 
           actions.push( [ type, "#{name}.player", val.join( ', ' ) ] )
           break
         when 'Role (No Voice)'
-          next if entry.key?( 'voice' )
+          if entry.key?( 'voice' )
+            # list voice roles without spoken lines as "No Voice"
+            next if person_spoken_count( 'Role', name ).positive?
+          end
 
           actions.push( [ type, "#{name}.player", val.join( ', ' ) ] )
           break
@@ -2282,6 +2296,23 @@ f = actor free<br>
     @assignment_list = table
     @html_report << html_table_r( table, title )
     table
+  end
+
+  def export_assignment
+    list = []
+    @assignment_list.each do |row|
+      list << row.map do |e|
+        case e
+        when 'x'
+          '1'
+        when /[.]/
+          e.split( '.' ).first
+        else
+          e
+        end
+      end
+    end
+    list
   end
 
   def puts_cast_table( title )
@@ -2755,7 +2786,7 @@ pp [ :list_one_person, key, val ]
         when /[)]$/
           text = text[ 0 .. -2 ]
         when /^[(]/
-          text = text[ 1 .. -1 ]
+          text = text[ 1 .. ]
         end
         players, puppet, clothing = text.split( '|', 3 ).map( &:strip )
         player, hand, voice = players.split( ', ' ).map( &:strip )
@@ -2895,7 +2926,7 @@ pp [ :list_one_person, key, val ]
       end
     list2[ 4 ] = player if list2[ 4 ].nil?
 
-    list = merge_role( role, list2[ 2 .. -1 ] )
+    list = merge_role( role, list2[ 2 .. ] )
     @store.add_role( role, list )
     # pp [ 'parse_table_role', role, list ]
     {
@@ -2916,7 +2947,7 @@ pp [ :list_one_person, key, val ]
   end
 
   def split_dokuwiki_table( line )
-    line.split( '|' )[ 1 .. -1 ].map( &:strip )
+    line.split( '|' )[ 1 .. ].map( &:strip )
   end
 
   def parse_table_prop( line )
@@ -2927,7 +2958,13 @@ pp [ :list_one_person, key, val ]
     ITEM_TAGS.each_pair do |tag, type|
       found = type if list[ 0 ] =~ /<#{tag}>/
     end
-    hands.push( new_stagehand( prop ) ) if hands.empty?
+    case found
+    when 'FrontProp', 'SecondLevelProp'
+      # default to no hands
+      hands.push( 'None' ) if hands.empty?
+    else
+      hands.push( new_stagehand( prop ) ) if hands.empty?
+    end
     # p [ 'header_single_prop',  prop, hands, found ]
     header_single_prop( prop, hands, found )
     # @setting << "\n" + list[ 0 ] + ' ' + list[ 2 ]
@@ -4137,7 +4174,7 @@ CSV.open( TODO_LIST_FILE, 'wb', col_sep: ';' ) do |csv|
 end
 
 CSV.open( ASSIGNMENT_LIST_FILE, 'wb', col_sep: ';' ) do |csv|
-  parser.report.assignment_list.each do |row|
+  parser.report.export_assignment.each do |row|
     csv << row
   end
 end

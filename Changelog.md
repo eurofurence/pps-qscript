@@ -1,4 +1,11 @@
 
+## 2023-04-11
+ * FrontProp and SecondLevelProp defaluts to no hands
+ * assignment detect roles without spoken lines
+ * assignment skip props without hands
+ * assignment export scenes as numbers
+ * assignment export remove suffix on roles
+
 ## 2023-04-02
  * limit substitutions to one scene
 
