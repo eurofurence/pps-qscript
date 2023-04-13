@@ -1,7 +1,8 @@
 
-## 2023-04-12
+## 2023-04-13
  * ignore empty prop lines
  * new check for "%HND%" without stagehand
+ * support role alias in header
 
 ## 2023-04-11
  * FrontProp and SecondLevelProp defaults to no hands

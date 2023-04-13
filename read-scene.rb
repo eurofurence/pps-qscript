@@ -2918,6 +2918,12 @@ pp [ :list_one_person, key, val ]
       add_error_note( "Skipping Empty Role: #{line}" )
       return
     end
+    @roles_config.roles_map.each_pair do |group, role2|
+      next unless group == role
+      next unless role2.size == 1
+
+      role = role2.first
+    end
     player = list2[ 2 ]
     list2[ 3 ] = player if list2[ 3 ].nil?
     list2[ 3 ] =
