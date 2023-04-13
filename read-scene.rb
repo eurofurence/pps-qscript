@@ -2834,6 +2834,8 @@ pp [ :list_one_person, key, val ]
 
   def header_single_prop( prop, hands, type )
     if type.nil?
+      return if prop == '' # ignore empty lines
+
       add_todo( "Type of Prop '#{prop}' unknown." )
       return
     end
@@ -3951,7 +3953,13 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
       hands = get_stagehand( kprop )
       p [ '%HND%', props, hands ] unless $debug.zero?
       hands.each do |hand|
-        next if hand.casecmp( 'none' ).zero?
+        if hand.casecmp( 'none' ).zero?
+          collect_handprop( text, nil )
+          @qscript.puts_key( 'stagehand', hand, text )
+          @report.puts2_key( 'Stage', hand, text )
+          add_todo( "%HND% ohne Stagehand: #{text}" )
+          next
+        end
 
         @store.add_item( 'Actor', hand, prop: kprop, stagehand: true )
         add_todo( @store.check_actor( hand ) )

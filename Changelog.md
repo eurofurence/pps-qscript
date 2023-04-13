@@ -1,6 +1,10 @@
 
+## 2023-04-12
+ * ignore empty prop lines
+ * new check for "%HND%" without stagehand
+
 ## 2023-04-11
- * FrontProp and SecondLevelProp defaluts to no hands
+ * FrontProp and SecondLevelProp defaults to no hands
  * assignment detect roles without spoken lines
  * assignment skip props without hands
  * assignment export scenes as numbers
