@@ -29,6 +29,8 @@ TODO_LIST_FILE = 'todo-list.csv'.freeze
 TODO_LIST_HEADER = [ 'Scene', 'Category', 'Item' ].freeze
 # output for assignment list
 ASSIGNMENT_LIST_FILE = 'assignment-list.csv'.freeze
+# output for people list
+PEOPLE_LIST_FILE = 'people.json'
 # regular expression for matching names
 MATCH_NAME = '[A-Za-z0-9_-]+'.freeze
 # regular expression for matching names within a tag
@@ -2349,6 +2351,10 @@ f = actor free<br>
         puts_people_export( title, type )
       when 'Cast of Characters'
         puts_cast_table( title )
+      when 'People'
+        export = puts_timeframe_table( title, type )
+        file_put_contents( PEOPLE_LIST_FILE,
+                           JSON.pretty_generate( export ) )
       else
         puts_timeframe_table( title, type )
       end
@@ -4207,6 +4213,7 @@ end
 # pp parser.store.items[ 'Actor' ][ 'Liam' ]
 # pp parser.store.items[ 'SecondLevelProp' ]
 # pp parser.store.timeframe.wiki_highlite
+# pp parser.report.list_people_people( 'Actor' )
 
 exit 0
 # eof

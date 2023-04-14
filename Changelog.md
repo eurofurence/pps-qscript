@@ -1,4 +1,7 @@
 
+## 2023-04-14
+ * export people list as JSON
+
 ## 2023-04-13
  * ignore empty prop lines
  * new check for "%HND%" without stagehand
