@@ -2193,7 +2193,6 @@ f = actor free<br>
     actions = []
     @store.collection[ 'Role' ].each_pair do |name, entry|
       entry.each_pair do |key, val|
-pp [ :find_export_role1, type, name, key, val ]
         case type
         when 'Role (Voice)'
           next unless entry.key?( 'voice' )
@@ -2220,14 +2219,14 @@ pp [ :find_export_role1, type, name, key, val ]
 
               val2.each do |hand|
                 next if hand.casecmp( 'none' ).zero?
-                next if hand == entry[ 'player' ]
+                next if entry[ 'player' ].include?( hand )
                 next if seen.key?( hand )
 
                 actions.push( [ type, "#{name}.hands", hand ] )
                 seen[ hand ] = true
               end
             else
-              next if entry[ 'player' ] == val2
+              next if entry[ 'player' ].include?( val2 )
               next if val2.casecmp( 'none' ).zero?
               next if seen.key?( hand )
 
