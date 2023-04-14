@@ -1,4 +1,8 @@
 
+## 2023-04-15
+ * bugfix hands in people export
+ * support for hands = "None"
+
 ## 2023-04-14
  * export people list as JSON
 

@@ -30,7 +30,7 @@ TODO_LIST_HEADER = [ 'Scene', 'Category', 'Item' ].freeze
 # output for assignment list
 ASSIGNMENT_LIST_FILE = 'assignment-list.csv'.freeze
 # output for people list
-PEOPLE_LIST_FILE = 'people.json'
+PEOPLE_LIST_FILE = 'people.json'.freeze
 # regular expression for matching names
 MATCH_NAME = '[A-Za-z0-9_-]+'.freeze
 # regular expression for matching names within a tag
@@ -775,9 +775,9 @@ class Store
     uhands = []
     hands.each do |player|
       player = uniq_player( player, 'Hands', name )
+      uhands.push( player )
       next if player.casecmp( 'none' ).zero?
 
-      uhands.push( player )
       add( 'Actor', player, name )
       @timeframe.add( 'Actor', player )
       @timeframe.add_wiki_actor_for( player, name )
@@ -973,6 +973,7 @@ end
 #   Report.find_backdrop( scene, prop )
 #   Report.find_scene_backdrops( scene, prop )
 #   Report.puts_backdrops_table( title, key )
+#   Report.puppet_play_hand( puppet_plays )
 #   Report.puppet_play_full( title, key )
 #   Report.puppet_use_data( key )
 #   Report.puppet_use_costumes( key )
@@ -2081,6 +2082,13 @@ class Report
       end
   end
 
+  def puppet_play_hand( puppet_plays )
+    return '' if puppet_plays[ 2 ].casecmp( 'none' ).zero?
+    return '' if puppet_plays[ 2 ] == puppet_plays[ 1 ]
+
+    "/#{puppet_plays[ 2 ]}"
+  end
+
   def puppet_play_full( title, key )
     table, puppets = columns_and_rows( key )
     puppets.sort.each do |puppet|
@@ -2093,9 +2101,7 @@ class Report
           next
         end
         val = hash[ 'puppet_plays' ][ puppet ][ 1 ].dup
-        val << "/#{hash[ 'puppet_plays' ][ puppet ][ 2 ]}" \
-          if hash[ 'puppet_plays' ][ puppet ][ 2 ] \
-          != hash[ 'puppet_plays' ][ puppet ][ 1 ]
+        val << puppet_play_hand( hash[ 'puppet_plays' ][ puppet ] )
         val << " (#{hash[ 'puppet_plays' ][ puppet ][ 0 ]})"
         row.push( val )
       end
@@ -2186,7 +2192,8 @@ f = actor free<br>
   def find_export_role( type )
     actions = []
     @store.collection[ 'Role' ].each_pair do |name, entry|
-      entry.each_pair do |_key, val|
+      entry.each_pair do |key, val|
+pp [ :find_export_role1, type, name, key, val ]
         case type
         when 'Role (Voice)'
           next unless entry.key?( 'voice' )
@@ -2204,18 +2211,29 @@ f = actor free<br>
           actions.push( [ type, "#{name}.player", val.join( ', ' ) ] )
           break
         when 'Role (Hand)'
-          if val.respond_to?( :shift )
-            next if val.empty?
+          next unless key == 'hands'
 
-            val.each do |hand|
-              next if entry[ 'player' ] == hand
+          seen = {}
+          val.each do |val2|
+            if val2.respond_to?( :shift )
+              next if val2.empty?
 
-              actions.push( [ type, "#{name}.hands", hand ] )
+              val2.each do |hand|
+                next if hand.casecmp( 'none' ).zero?
+                next if hand == entry[ 'player' ]
+                next if seen.key?( hand )
+
+                actions.push( [ type, "#{name}.hands", hand ] )
+                seen[ hand ] = true
+              end
+            else
+              next if entry[ 'player' ] == val2
+              next if val2.casecmp( 'none' ).zero?
+              next if seen.key?( hand )
+
+              actions.push( [ type, "#{name}.hands", val2 ] )
+              seen[ val2 ] = true
             end
-          else
-            next if entry[ 'player' ] == val
-
-            actions.push( [ type, "#{name}.hands", val ] )
           end
           break
         end
@@ -2620,9 +2638,12 @@ pp [ :list_one_person, key, val ]
       # p [ 'list_one_person', name, key, val ]
       if val.respond_to?( :shift )
         next if val.empty?
+        next if val.size == 1 && val.first.casecmp( 'none' ).zero?
 
         @qscript.puts "\tperson+ \"#{name}\".#{key} \"#{val.join( ', ' )}\""
         val.each do |hand|
+          next if hand.casecmp( 'none' ).zero?
+
           @report.html_p( [ 'Pers+', [ role( name ), key ], actor( hand ) ] )
         end
       else
@@ -2701,12 +2722,22 @@ pp [ :list_one_person, key, val ]
     )
   end
 
-  def drop_person_player( name, what, players )
+  def players_empty?( players )
     if players.respond_to?( :shift )
-      return if players.empty?
-    else
-      return if players.casecmp( 'none' ).zero?
+      return true if players.empty?
+
+      return true if players.size == 1 && players.first.casecmp( 'none' ).zero?
+
+      return false
     end
+
+    return true if players.casecmp( 'none' ).zero?
+
+    false
+  end
+
+  def drop_person_player( name, what, players )
+    return if players_empty?( players )
 
     @qscript.puts "\tperson- \"#{name}\".#{what}"
     @report.html_p( [ 'Pers-', [ name, what ] ] )
@@ -2914,6 +2945,7 @@ pp [ :list_one_person, key, val ]
     end
   end
 
+  # Role, Actor, Hands, Voice, Puppet, Costume
   def parse_table_role( line )
     list2 = line.split( '|' ).map( &:strip )
     list2.map! do |f|
