@@ -5,6 +5,7 @@
 *.json
 *.log
 *.pdf
+*.yml
 *.wiki*
 HISTORY
 OLD
@@ -12,6 +13,7 @@ QScript
 TESTS
 UPLOAD
 actors
+availability.txt
 cookies.txt
 debug.txt
 doc

@@ -60,9 +60,10 @@ end
   'clothes.pdf',
   'all.pdf',
   'todo-list.csv',
-  'assignment-list.csv'
+  'assignment-list.csv',
+  'availability.html'
 ].each do |filename|
-  dokuwiki.upload_file( EFPATH, filename )
+  dokuwiki.upload_file( $config[ 'qspath' ], filename )
 end
 
 exit 0

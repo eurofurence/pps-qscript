@@ -9,6 +9,7 @@ ACTORS_PDF=	${ACTORS_HTML:S/html/pdf/g}
 ACTORS_LIST=	${ACTORS_HTML:S/.html//g}
 
 all:	subs.txt roles.txt numbered-qscript.txt out.txt \
+	availability.txt \
 	test.txt test.wdiff \
 	all.wiki clothes.pdf all.pdf puppet_pool.csv tidy.html \
 	actors/run.log actors
@@ -33,6 +34,10 @@ numbered-qscript.txt:	qscript.txt
 out.txt:	out.html
 	lynx -dump -display_charset=utf-8 -nonumbers -width=5000 out.html |\
 	fgrep -v 'file:' >out.txt
+
+availability.txt:	availability.html
+	lynx -dump -display_charset=utf-8 -nonumbers -width=5000 availability.html |\
+	fgrep -v 'file:' >availability.txt
 
 test.txt:	test.html
 	lynx -dump -display_charset=utf-8 -nonumbers -width=5000 test.html |\

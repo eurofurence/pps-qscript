@@ -4,6 +4,7 @@
  * support for hands = "None"
  * option "assignment_show_all_hands"
  * add YAML config files
+ * generate availability.html
 
 ## 2023-04-14
  * export people list as JSON

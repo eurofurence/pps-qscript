@@ -23,6 +23,8 @@ make pre
 #	mv -vf test.tmp test.html
 #fi
 
+./availability.rb
+
 make
 
 #echo "vim -c 'set syn=wdiff' test.wdiff"
