@@ -992,6 +992,7 @@ end
 #   Report.puts_hands_table( title )
 #   Report.puts_assignments_table( title )
 #   Report.puts_people_people_table( title, key )
+#   Report.hand_empty?( players, hand )
 #   Report.find_export_role( type )
 #   Report.columns_and_rows2( key )
 #   Report.puts_people_export( title, key )
@@ -2199,6 +2200,15 @@ f = actor free<br>
     @html_report << html_table_r( people_people, title, '' )
   end
 
+  def hand_empty?( players, hand )
+    return true if hand.casecmp( 'none' ).zero?
+
+    return true if players.include?( hand ) &&
+                   !$config[ 'assignment_show_all_hands' ]
+
+    false
+  end
+
   def find_export_role( type )
     actions = []
     @store.collection[ 'Role' ].each_pair do |name, entry|
@@ -2228,17 +2238,14 @@ f = actor free<br>
               next if val2.empty?
 
               val2.each do |hand|
-                next if hand.casecmp( 'none' ).zero?
-                next if entry[ 'player' ].include?( hand ) &&
-                        !$config[ 'assignment_show_all_hands' ]
+                next if hand_empty?( entry[ 'player' ], hand )
                 next if seen.key?( hand )
 
                 actions.push( [ type, "#{name}.hands", hand ] )
                 seen[ hand ] = true
               end
             else
-              next if entry[ 'player' ].include?( val2 )
-              next if val2.casecmp( 'none' ).zero?
+              next if hand_empty?( entry[ 'player' ], val2 )
               next if seen.key?( hand )
 
               actions.push( [ type, "#{name}.hands", val2 ] )
