@@ -2,6 +2,8 @@
 ## 2023-04-15
  * bugfix hands in people export
  * support for hands = "None"
+ * option "assignment_show_all_hands"
+ * add YAML config files
 
 ## 2023-04-14
  * export people list as JSON

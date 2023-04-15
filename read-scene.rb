@@ -7,12 +7,15 @@
 # License::   Distributes under the same terms as Ruby
 #
 
-require 'cgi'
+require 'yaml'
 require 'json'
 require 'csv'
+require 'cgi'
 
 $: << '.'
 
+# global config file
+CONFIG_FILE = 'read-scene.yml'.freeze
 # config file for groups of roles
 ROLES_CONFIG_FILE = 'roles.ini'.freeze
 # config file for patterns to replace
@@ -22,7 +25,7 @@ PUPPET_POOL_FILE = 'puppet_pool.csv'.freeze
 # general header for html output files
 HTML_HEADER_FILE = 'header.html'.freeze
 # output for actors to wiki lines
-WIKI_ACTORS_FILE = 'wiki_actors.json'.freeze
+WIKI_ACTORS_FILE = 'wiki-actors.json'.freeze
 # output for todo list
 TODO_LIST_FILE = 'todo-list.csv'.freeze
 # header for todo list
@@ -41,6 +44,13 @@ $compat = false
 $compat2 = true
 $debug = 0
 $debug = 1
+
+def read_yaml( filename, default = {} )
+  config = default
+  return config unless File.exist?( filename )
+
+  config.merge!( YAML.load_file( filename ) )
+end
 
 # check if downloaded file has changed
 def downloaded?( filename, buffer )
@@ -2219,7 +2229,8 @@ f = actor free<br>
 
               val2.each do |hand|
                 next if hand.casecmp( 'none' ).zero?
-                next if entry[ 'player' ].include?( hand )
+                next if entry[ 'player' ].include?( hand ) &&
+                        !$config[ 'assignment_show_all_hands' ]
                 next if seen.key?( hand )
 
                 actions.push( [ type, "#{name}.hands", hand ] )
@@ -4185,6 +4196,17 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
     close_scene
   end
 end
+
+$config = read_yaml(
+  CONFIG_FILE,
+  'ignore_dirs_file' => '.ignore.txt',
+  'nat_sort' => true,
+  'compat' => false,
+  'compat2' => true,
+  'assignment_show_all_hands' => true,
+  'debug' => 0
+)
+# pp $config
 
 read_subs( SUBS_CONFIG_FILE )
 read_puppet( PUPPET_POOL_FILE )

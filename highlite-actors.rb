@@ -14,7 +14,7 @@ require 'fileutils'
 $: << '.'
 
 # input for actors to wiki lines
-WIKI_ACTORS = 'wiki_actors.json'.freeze
+WIKI_ACTORS = 'wiki-actors.json'.freeze
 # input html
 INPUT_HTML = 'all.html'.freeze
 # old input html
