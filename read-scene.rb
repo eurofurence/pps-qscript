@@ -45,6 +45,7 @@ $compat2 = true
 $debug = 0
 $debug = 1
 
+# read global config options
 def read_yaml( filename, default = {} )
   config = default
   return config unless File.exist?( filename )
@@ -508,12 +509,14 @@ end
 #   Store.check_puppet( role, name )
 #   Store.check_clothing( puppet, name )
 #   Store.uniq_player( player, prefix, name )
-#   Store.last_role( role, what )
 #   Store.add_role_collection( name, what, player )
+#   Store.last_role( role, what )
 #   Store.add_person( name, what, player, prefix )
 #   Store.add_voice( name, voice )
 #   Store.add_puppet( name, puppet )
 #   Store.add_clothing( name, clothing )
+#   Store.drop_one_clothing( role, puppet, clothing )
+#   Store.store_role( name, list )
 #   Store.add_role( name, list )
 #   Store.add_backdrop( position, backdrop )
 class Store
@@ -679,6 +682,7 @@ class Store
     nil
   end
 
+  # check a puppet for collisions
   def check_puppet( role, name )
     return nil unless @items[ 'Costume' ].key?( name )
 
@@ -698,6 +702,7 @@ class Store
     nil
   end
 
+  # check a costume for collisions
   def check_clothing( puppet, name )
     return nil unless @items[ 'Costume' ].key?( name )
     return nil if name.casecmp( 'none' ).zero?
@@ -922,6 +927,8 @@ end
 # === Class Functions
 #   Report.new( store, qscript )
 #   Report.puppet_costumes
+#   Report.todo_list
+#   Report.assignment_list
 #   Report.put_html( line )
 #   Report.puts_html( line )
 #   Report.find_item_of_type( name, type )
@@ -944,6 +951,7 @@ end
 #   Report.add_script( item )
 #   Report.list_title_quoted( list, prefix )
 #   Report.list_quoted( list, prefix, type )
+#   Report.make_unsorted( list, type )
 #   Report.list_unsorted( list, type )
 #   Report.list( hash, type )
 #   Report.catalog
@@ -969,6 +977,8 @@ end
 #   Report.merge_export( assignments, actor, action )
 #   Report.merge_export_role( assignments, actor, entry )
 #   Report.list_people_exports
+#   Report.list_item_keys( key )
+#   Report.check_people_people( key, actor1, actor2 )
 #   Report.list_people_people( key )
 #   Report.merge_cast( cast, actor, action )
 #   Report.list_cast
@@ -2418,33 +2428,47 @@ end
 #   Parser.parse_title( filename )
 #   Parser.curtain( text )
 #   Parser.add_backdrop_list( list )
+#   Parser.new_backdrop( _position, text )
 #   Parser.add_single_backdrop( position, text )
 #   Parser.parse_single_backdrop( line )
 #   Parser.list_one_person( name )
 #   Parser.drop_clothing( name )
 #   Parser.drop_person_props( name )
 #   Parser.drop_puppet( name )
+#   Parser.players_empty?( players )
+#   Parser.drop_person_player( name, what, players )
 #   Parser.drop_person( name )
 #   Parser.list_one_person2( name )
+#   Parser.check_role_list( list )
 #   Parser.parse_single_puppet( line )
 #   Parser.suffix_props( line, key )
-#   Parser.new_stagehand( prop )
 #   Parser.tagged_props( line, key )
 #   Parser.header_single_prop( prop, hands, names )
+#   Parser.new_stagehand( prop )
 #   Parser.parse_single_prop( line, key, type )
 #   Parser.parse_all_props( line )
 #   Parser.parse_section_data( section, line )
 #   Parser.parse_table_role( line )
+#   Parser.split_dokuwiki_table( line )
+#   Parser.parse_table_prop( line )
+#   Parser.parse_table_backdrop( line )
+#   Parser.parse_table_all( line )
 #   Parser.parse_puppets( line )
 #   Parser.parse_backdrops( line )
 #   Parser.parse_effects( line )
 #   Parser.parse_costumes( line )
 #   Parser.parse_head( section, line )
+#   Parser.get_hands( kprop )
+#   Parser.add_prop_hands( prop, names )
 #   Parser.add_single_prop( prop, names )
+#   Parser.add_just_prop( prop, names )
+#   Parser.count_single_prop( prop, names )
+#   Parser.drop_single_prop( prop, names )
 #   Parser.add_owned_prop( prop, owner, names )
 #   Parser.remove_owned_prop( prop, owner, names )
-#   Parser.count_single_prop( prop, names )
 #   Parser.count_owned_prop( prop, owner, names )
+#   Parser.remove_scene_prop( prop )
+#   Parser.missing_scene_prop( prop )
 #   Parser.add_scene_prop( prop, tag )
 #   Parser.collect_single_prop( prop, names, tag )
 #   Parser.collect_just_prop( prop, names, tag )
@@ -2459,11 +2483,11 @@ end
 #   Parser.add_note( line )
 #   Parser.add_todo( line )
 #   Parser.add_error_note( line )
-#   Parser.strip_none( name )
 #   Parser.change_role_player( role, old_player, player )
 #   Parser.change_role_hand( role, old_hand, hand )
 #   Parser.change_role_voice( role, old_voice, voice )
 #   Parser.change_role_puppet( role, old_puppet, puppet )
+#   Parser.strip_none( name )
 #   Parser.change_role_clothing( role, old_clothing, clothing )
 #   Parser.old_role( role, list )
 #   Parser.merge_role( role, list )
@@ -2482,10 +2506,12 @@ end
 #   Parser.replace_text( line, filename )
 #   Parser.close_scene
 #   Parser.print_unknown_line( line )
+#   Parser.parse_table_section( line )
 #   Parser.parse_section( line )
 #   Parser.get_stagehand( kprop )
 #   Parser.parse_hand( text )
 #   Parser.parse_spot( text )
+#   Parser.add_fog_hands( text )
 #   Parser.parse_fog( text )
 #   Parser.parse_curtain( line )
 #   Parser.intro_line( line )

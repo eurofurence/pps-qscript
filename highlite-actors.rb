@@ -21,8 +21,9 @@ INPUT_HTML = 'all.html'.freeze
 CHANGED_HTML = 'all.html.orig'.freeze
 # output directory
 ACTORS_DIR = 'actors'.freeze
-# output index
+# output index for pdf
 ACTORS_PDF_INDEX = 'actors.wiki'.freeze
+# output index for html
 ACTORS_HTML_INDEX = 'actors-html.wiki'.freeze
 # regular expression for matching names
 MATCH_NAME = '[A-Za-z0-9_-]+'.freeze
@@ -192,6 +193,7 @@ def parse_patterns( scene, actor, line )
   HIGHLITE
 end
 
+# modify line where script changed
 def parse_changed( scene, line )
   return '' if @ignore_changed
   return '' if @changed[ scene ].key?( line )
@@ -199,6 +201,7 @@ def parse_changed( scene, line )
   CHANGED
 end
 
+# decide what to highlite
 def highlite_patterns( scene, actor, line )
   changed = parse_changed( scene, line )
   highlite = parse_patterns( scene, actor, line )
@@ -247,6 +250,7 @@ def table_line( scene, actor, line )
   end
 end
 
+# read old script foir changes
 def read_changed
   @changed = {}
   scene = nil
