@@ -21,6 +21,8 @@ $: << '.'
 
 # input for people list
 PEOPLE_LIST_FILE = 'people.json'.freeze
+# fix availabe people list
+AVAILABILITY_INI_FILE = 'availability.ini'.freeze
 # input availabe people list
 AVAILABILITY_LIST_FILE = 'media/availability.csv'.freeze
 # general header for html output files
@@ -49,14 +51,32 @@ def file_put_contents( filename, buffer, mode = 'w+' )
   end
 end
 
+def read_ini( filename )
+  h = {}
+  File.read( filename ).split( "\n" ).each do |line|
+    next if line =~ /^#/
+    next unless line.include?( ';' )
+
+    oldname, newname = line.split( ';', 2 )
+    h[ oldname ] = newname
+  end
+  h
+end
+
+# read CSV file with unexpected BOM
 def read_csv( filename )
   list = []
   CSV.foreach( filename, encoding: 'bom|UTF-8', col_sep: ';' ) do |row|
+    # match players to the script
+    if @subs.key?( row[0] )
+      row[0] = @subs[ row[0] ]
+    end
     list.push( row )
   end
   list
 end
 
+# convert list of people to hash
 def people_hash
   h = {}
   fields = []
@@ -78,6 +98,7 @@ def people_hash
   h
 end
 
+# convert list of availability to hash
 def availability_hash
   h = {}
   fields = []
@@ -104,6 +125,7 @@ def availability_hash
   h
 end
 
+# build list of headers for columns and rows
 def columns_and_rows( event )
   list1 = []
   list2 = []
@@ -112,17 +134,25 @@ def columns_and_rows( event )
     next if name.nil?
     next if name == ''
 
-    if name.include?( '_' ) || !@availability2[ name ].key?( event )
+    # names with _ are placeholders
+    if name.include?( '_' )
       list1.push( name )
-    else
-      list2.push( name )
+      next
     end
+    if @availability2.key?( name )
+      if !@availability2[ name ].key?( event )
+        list1.push( name )
+        next
+      end
+    end
+    list2.push( name )
   end
   @availability2.each_key do |name|
     next if name.nil?
     next if name == ''
     next if list2.include?( name )
 
+    # check if people can attend
     if @availability2[ name ].key?( event )
       list2.push( name )
     else
@@ -132,6 +162,7 @@ def columns_and_rows( event )
   [ list1, list2 ]
 end
 
+# check if assigments operlap
 def conflict?(  name2, name1 )
   return false unless @people2.key?( name2 )
   return false unless @people2.key?( name1 )
@@ -146,24 +177,31 @@ def conflict?(  name2, name1 )
   false
 end
 
+# content of the table cell
 def match_names( name2, name1, event )
+  return '?' unless @availability2.key?( name2 )
   return '' unless @availability2[ name2 ].key?( event )
   return '' if conflict?( name2, name1 )
 
   'f'
 end
 
+# set red color
 def color_red( text )
   "<span style=\"color:red\">#{text}</span>"
 end
 
+# color missing people
 def missing_people( name2, event )
+  return [ name2 ] unless @availability2.key?( name2 )
+
   return [ color_red( name2 ) ] \
          unless @availability2[ name2 ].key?( event )
 
   [ name2 ]
 end
 
+# check if person can be assigned
 def availble?( name, event )
   return true unless @availability2.key?( name )
   return true if @availability2[ name ].key?( event )
@@ -171,6 +209,7 @@ def availble?( name, event )
   false
 end
 
+# build the columns
 def make_columns( list1, event )
   list = [ nil ]
   list1.each do |name|
@@ -183,6 +222,7 @@ def make_columns( list1, event )
   list
 end
 
+# build the table
 def make_table( event )
   list = []
   list1, list2 = columns_and_rows( event )
@@ -205,6 +245,7 @@ def make_table( event )
   list
 end
 
+# export to CSV
 def write_csv( filename, list )
   CSV.open( filename, 'wb', col_sep: ';' ) do |csv|
     list.each do |row|
@@ -223,11 +264,13 @@ def html_u_ref_item( ref, item )
   "<u id=\"#{ref}\">#{item}</u>"
 end
 
+# set caption for navigation
 def table_caption( title )
   href = "tab#{capitalize( title )}"
   html_u_ref_item( href, title )
 end
 
+# build html table with rotated headers
 def html_table_r( table, title, tag = '', head_row = nil )
   html = table_caption( title )
   html << "\n#{tag}<table>"
@@ -249,7 +292,7 @@ def html_table_r( table, title, tag = '', head_row = nil )
       case column
       when nil
         html << '<td/>'
-      when 'x'
+      when 'f'
         html << '<td class="x">'
         html << column.to_s
         html << '</td>'
@@ -277,6 +320,8 @@ end
 # pp @people
 @people2 = people_hash
 # pp @people2
+@subs = read_ini( AVAILABILITY_INI_FILE )
+# pp @subs
 @availability = read_csv( AVAILABILITY_LIST_FILE )
 # pp @availability
 @availability2 = availability_hash
@@ -291,6 +336,7 @@ end
 end
 
 @html_head = File.read( HTML_HEADER_FILE )
+@html_head.sub!( 'Qualified Pawpet Show script', 'Availability Pawpet Show' )
 file_put_contents( OUTPUT_HTML_FILE, "#{@html_head}<body>#{@html_report}</body></html>\n" )
 
 exit 0
