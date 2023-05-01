@@ -16,6 +16,7 @@ require 'dokuwiki'
 # wiki config file
 CONFIG_FILE = 'wiki-config.yml'.freeze
 
+# read wiki paths
 def read_yaml( filename, default = {} )
   config = default
   return config unless File.exist?( filename )
