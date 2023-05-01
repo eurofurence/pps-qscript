@@ -75,7 +75,7 @@ end
 
 # save actor HTML file
 def save_actor( actor )
-  filename = "#{ACTORS_DIR}/#{actor.downcase.delete( "'" )}.html"
+  filename = "#{ACTORS_DIR}/#{actor.downcase.delete( "'’" )}.html"
   @seen_output[ filename ] = true
   file_put_contents( filename, @out )
 end
