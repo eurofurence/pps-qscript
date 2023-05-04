@@ -35,7 +35,7 @@ dokuwiki.upload_dir = 'UPLOAD'
 old = Dir.getwd
 unless ARGV.empty?
   ARGV.each do |filename|
-    path = $config[ 'qspath' ].to_s
+    path = $config[ 'qspath' ].to_s.dup
     if filename.include?( '/' )
       dir = filename.split( '/' ).first
       path << ':'
