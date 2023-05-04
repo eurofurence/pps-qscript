@@ -36,7 +36,7 @@ old = Dir.getwd
 unless ARGV.empty?
   ARGV.each do |filename|
     path = $config[ 'qspath' ].to_s
-    if /\//i =~ filename
+    if filename.include?( '/' )
       dir = filename.split( '/' ).first
       path << ':'
       path << dir
