@@ -21,13 +21,14 @@ $: << '.'
 
 # input for people list
 PEOPLE_LIST_FILE = 'people.json'.freeze
+# input role assigment list
+ASSIGNMENT_FILE = 'assignment-list.json'.freeze
 # fix availabe people list
 AVAILABILITY_INI_FILE = 'availability.ini'.freeze
 # input availabe people list
 AVAILABILITY_LIST_FILE = 'media/availability.csv'.freeze
 # general header for html output files
 HTML_HEADER_FILE = 'header.html'.freeze
-
 # output for assignments
 OUTPUT_HTML_FILE = 'availability.html'.freeze
 
@@ -92,7 +93,7 @@ def people_hash
       next if fields[ i ].nil?
       next if row[ i ].nil?
 
-      h[ name ][ fields[ i ] ] = true
+      h[ name ][ fields[ i ] ] = row[ i ]
     end
   end
   h
@@ -125,6 +126,20 @@ def availability_hash
   h
 end
 
+def add_missing( list1, name )
+  @actors.each_pair do |scene, h|
+    next unless h.key?( name )
+
+    h[ name ].each do |role|
+      next if list1.include?( role )
+
+      @missing[ role ] = {} unless @missing.key?( role )
+      @missing[ role ][ scene ] = 'x'
+      list1.push( role )
+    end
+  end
+end
+
 # build list of headers for columns and rows
 def columns_and_rows( event )
   list1 = []
@@ -142,7 +157,8 @@ def columns_and_rows( event )
     if @availability2.key?( name )
       if !@availability2[ name ].key?( event )
         list1.push( name )
-        next
+        add_missing( list1, name )
+        # next
       end
     end
     list2.push( name )
@@ -162,8 +178,25 @@ def columns_and_rows( event )
   [ list1, list2 ]
 end
 
+def conflict_stepin?( name2, name1 )
+  return true unless @people2.key?( name2 )
+
+p [ :conflict_stepin, name2, name1 ]
+pp @people2[ name2 ]
+pp @missing[ name1 ]
+  @people2[ name2 ].each_key do |scene|
+    return true if @missing[ name1 ].key?( scene )
+  end
+  @missing[ name1 ].each_key do |scene|
+    return true if @people2[ name2 ].key?( scene )
+  end
+
+  false
+end
+
 # check if assigments operlap
-def conflict?(  name2, name1 )
+def conflict?( name2, name1 )
+  return conflict_stepin?( name2, name1 ) if @missing.key?( name1 )
   return false unless @people2.key?( name2 )
   return false unless @people2.key?( name1 )
 
@@ -183,6 +216,7 @@ def match_names( name2, name1, event )
   return '' unless @availability2[ name2 ].key?( event )
   return '' if conflict?( name2, name1 )
 
+  return '?' unless @missing.key?( name1 )
   'f'
 end
 
@@ -316,6 +350,9 @@ def html_table_r( table, title, tag = '', head_row = nil )
   html
 end
 
+@missing = {}
+@actors = JSON.parse( File.read( ASSIGNMENT_FILE ))
+# pp @actors
 @people = JSON.parse( File.read( PEOPLE_LIST_FILE ) )
 # pp @people
 @people2 = people_hash

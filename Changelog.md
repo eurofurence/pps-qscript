@@ -1,4 +1,11 @@
 
+## 2023-05-06
+ * extend availability.html with missing roles
+
+## 2023-05-01
+ * support local availability.ini to fix spelling of actors
+ * exclude more special characters
+
 ## 2023-04-15
  * bugfix hands in people export
  * support for hands = "None"

@@ -24,8 +24,13 @@ SUBS_CONFIG_FILE = 'subs.ini'.freeze
 PUPPET_POOL_FILE = 'puppet_pool.csv'.freeze
 # general header for html output files
 HTML_HEADER_FILE = 'header.html'.freeze
+
+# output to debug timeframe data
+TIMEFRAME_FILE = 'read-scene.json'.freeze
 # output for actors to wiki lines
 WIKI_ACTORS_FILE = 'wiki-actors.json'.freeze
+# output for actors assigment
+ASSIGNMENT_FILE = 'assignment-list.json'.freeze
 # output for todo list
 TODO_LIST_FILE = 'todo-list.csv'.freeze
 # header for todo list
@@ -33,6 +38,7 @@ TODO_LIST_HEADER = [ 'Scene', 'Category', 'Item' ].freeze
 # output for assignment list
 ASSIGNMENT_LIST_FILE = 'assignment-list.csv'.freeze
 # output for people list
+
 PEOPLE_LIST_FILE = 'people.json'.freeze
 # regular expression for matching names
 MATCH_NAME = '[A-Za-z0-9_-]+'.freeze
@@ -299,13 +305,16 @@ end
 #   Timeframe.qscript
 #   Timeframe.timeframe
 #   Timeframe.timeframe_count
-#   Timeframe.timeframes_lines
+#   Timeframe.timeframes
 #   Timeframe.timeframes_lines
 #   Timeframe.wiki_highlite
+#   Timeframe.assignment
 #   Timeframe.scene( title, filename )
 #   Timeframe.this_timeframe
 #   Timeframe.add_wiki_actor_for( actor, role )
 #   Timeframe.add_wiki_group_for( roles, group )
+#   Timeframe.add_assignment_actor_for( actor, role, suffix )
+#   Timeframe.add_actor_for( actor, role, suffix = nil )
 #   Timeframe.seen?( key, name )
 #   Timeframe.add( key, val )
 #   Timeframe.add_once( key, val )
@@ -350,6 +359,8 @@ class Timeframe
   attr_reader :timeframes_lines
   # the full wiki_highlite
   attr_reader :wiki_highlite
+  # the assignment list
+  attr_reader :assignment
 
   # create a timeframe
   def initialize( qscript )
@@ -359,6 +370,7 @@ class Timeframe
     @timeframes_lines = {}
     @qscript = qscript
     @wiki_highlite = {}
+    @assignment = {}
   end
 
   # start a new scene
@@ -367,6 +379,7 @@ class Timeframe
     @timeframe_count += 1
     @timeframes[ @timeframe ] = { number: @timeframe_count, filename: filename }
     @wiki_highlite[ filename ] = {}
+    @assignment[ @timeframe ] = {}
   end
 
   # get the list of the current timeframe
@@ -395,6 +408,26 @@ class Timeframe
         add_wiki_actor_for( actor, group )
       end
     end
+  end
+
+  # add an actor for assignment list
+  def add_assignment_actor_for( actor, pattern, suffix )
+    pattern2 =
+      if suffix.nil?
+        pattern
+      else
+        "#{pattern}.#{suffix}"
+      end
+    @assignment[ @timeframe ][ actor ] = [] \
+      unless @assignment[ @timeframe ].key?( actor )
+    @assignment[ @timeframe ][ actor ].push( pattern2 ) \
+      unless @assignment[ @timeframe ][ actor ].include?( pattern2 )
+  end
+
+  # add an actor for assignment and highlite
+  def add_actor_for( actor, pattern, suffix = nil )
+    add_assignment_actor_for( actor, pattern, suffix )
+    add_wiki_actor_for( actor, pattern )
   end
 
   # check if we have a new item in the current timeframe
@@ -471,7 +504,7 @@ class Timeframe
 
         add( 'Actor', hand )
         add_list_text( 'Actor', reportkey2, hand, line )
-        add_wiki_actor_for( hand, name )
+        add_actor_for( hand, name )
       end
     end
 
@@ -769,11 +802,11 @@ class Store
     if what == 'voice'
       if last_role( name, 'player' ) != player
         @timeframe.add( 'Actor', player )
-        @timeframe.add_wiki_actor_for( player, name )
+        @timeframe.add_actor_for( player, name, what )
       end
     else
       @timeframe.add( 'Actor', player )
-      @timeframe.add_wiki_actor_for( player, name )
+      @timeframe.add_actor_for( player, name, what )
     end
     @timeframe.add_list_text(
       'Role', 'Pers+', name, [ [ role( name ), what ], actor( player ) ]
@@ -795,7 +828,7 @@ class Store
 
       add( 'Actor', player, name )
       @timeframe.add( 'Actor', player )
-      @timeframe.add_wiki_actor_for( player, name )
+      @timeframe.add_actor_for( player, name, 'hands' )
       @timeframe.add_list_text(
         'Role', 'Pers+', name, [ [ role( name ), 'hands' ], actor( player ) ]
       )
@@ -2936,7 +2969,7 @@ pp [ :list_one_person, key, val ]
       @store.timeframe.add_list_text(
         'Actor', reportkey, hand, [ actor( hand ), tname( type, kprop ) ]
       )
-      @store.timeframe.add_wiki_actor_for( hand, kprop )
+      @store.timeframe.add_actor_for( hand, kprop )
     end
   end
 
@@ -3157,7 +3190,7 @@ pp [ :list_one_person, key, val ]
 
       @store.timeframe.add( 'Actor', hand )
       @store.timeframe.add_list_text( 'Actor', reportkey, hand, kprop )
-      @store.timeframe.add_wiki_actor_for( hand, kprop )
+      @store.timeframe.add_actor_for( hand, kprop )
     end
   end
 
@@ -4052,7 +4085,7 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
         add_todo( @store.check_actor( hand ) )
         collect_handprop( text, nil )
         parse_stagehand( hand, text, 'stagehand', 'Stage' )
-        @store.timeframe.add_wiki_actor_for( hand, kprop )
+        @store.timeframe.add_actor_for( hand, kprop )
       end
     end
     return unless props.empty?
@@ -4079,7 +4112,7 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
         @store.timeframe.add_list_text(
           'Effect', 'Effct', kprop, [ hand, text ]
         )
-        @store.timeframe.add_wiki_actor_for( hand, kprop )
+        @store.timeframe.add_actor_for( hand, kprop )
       end
     end
     return unless props.empty?
@@ -4101,7 +4134,7 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
       @store.timeframe.add( 'Effect', text )
       @store.timeframe.add_list_text( 'Effect', 'Effct', text, [ hand, text ] )
       @store.timeframe.add_list_text( 'Actor', 'Effct', text, [ hand, text ] )
-      @store.timeframe.add_wiki_actor_for( hand, text )
+      @store.timeframe.add_actor_for( hand, text )
     end
   end
 
@@ -4127,6 +4160,7 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
         @store.timeframe.add_list_text(
           'Actor', 'Effct', kprop, [ hand, text ]
         )
+        @store.timeframe.add_actor_for( hand, kprop )
         @store.timeframe.add_wiki_actor_for( hand, kprop )
       end
     end
@@ -4270,8 +4304,12 @@ html_costumes = File.read( HTML_HEADER_FILE )
 html_costumes << '<body>'
 html_costumes << costumes
 file_put_contents( 'clothes.html', html_costumes )
+file_put_contents( TIMEFRAME_FILE,
+                   JSON.pretty_generate( parser.store.timeframe.timeframes ) )
 file_put_contents( WIKI_ACTORS_FILE,
                    JSON.pretty_generate( parser.store.timeframe.wiki_highlite ) )
+file_put_contents( ASSIGNMENT_FILE,
+                   JSON.pretty_generate( parser.store.timeframe.assignment ) )
 
 CSV.open( TODO_LIST_FILE, 'wb', col_sep: ';' ) do |csv|
   parser.report.todo_list.each do |row|
