@@ -181,9 +181,6 @@ end
 def conflict_stepin?( name2, name1 )
   return true unless @people2.key?( name2 )
 
-p [ :conflict_stepin, name2, name1 ]
-pp @people2[ name2 ]
-pp @missing[ name1 ]
   @people2[ name2 ].each_key do |scene|
     return true if @missing[ name1 ].key?( scene )
   end
