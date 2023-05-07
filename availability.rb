@@ -52,6 +52,7 @@ def file_put_contents( filename, buffer, mode = 'w+' )
   end
 end
 
+# read file with substitutions
 def read_ini( filename )
   h = {}
   File.read( filename ).split( "\n" ).each do |line|
@@ -144,6 +145,7 @@ end
 def columns_and_rows( event )
   list1 = []
   list2 = []
+  @missing = {}
   @people.each do |row|
     name = row.first
     next if name.nil?
@@ -213,7 +215,6 @@ def match_names( name2, name1, event )
   return '' unless @availability2[ name2 ].key?( event )
   return '' if conflict?( name2, name1 )
 
-  return '?' unless @missing.key?( name1 )
   'f'
 end
 
@@ -347,7 +348,6 @@ def html_table_r( table, title, tag = '', head_row = nil )
   html
 end
 
-@missing = {}
 @actors = JSON.parse( File.read( ASSIGNMENT_FILE ))
 # pp @actors
 @people = JSON.parse( File.read( PEOPLE_LIST_FILE ) )
@@ -364,8 +364,6 @@ end
 @html_report = ''
 @events.each do |event|
   table = make_table( event )
-  # write_csv( 'availability.csv', table )
-  # system( "cat availability.csv" )
   @html_report << html_table_r( table, event )
 end
 

@@ -1,5 +1,8 @@
 
 ## 2023-05-06
+ * fix availability.html with missing roles per scene
+
+## 2023-05-06
  * extend availability.html with missing roles
 
 ## 2023-05-01
