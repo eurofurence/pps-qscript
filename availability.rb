@@ -108,7 +108,6 @@ def availability_hash
     name = row.first
     if name.nil?
       fields = row
-      fields.push( 'Show' )
       next
     end
 
@@ -120,7 +119,6 @@ def availability_hash
 
       h[ name ][ fields[ i ] ] = true
     end
-    h[ name ][ 'Show' ] = true
   end
   fields.shift
   @events = fields

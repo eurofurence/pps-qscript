@@ -1,6 +1,7 @@
 
 ## 2023-05-06
  * fix availability.html with missing roles per scene
+ * remove implicit table for the show
 
 ## 2023-05-06
  * extend availability.html with missing roles
