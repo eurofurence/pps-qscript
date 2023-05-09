@@ -1,5 +1,8 @@
 
-## 2023-05-06
+## 2023-05-09
+ * bugfix empty puppet
+
+## 2023-05-07
  * fix availability.html with missing roles per scene
  * remove implicit table for the show
 

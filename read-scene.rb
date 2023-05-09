@@ -3688,7 +3688,7 @@ pp [ :list_one_person, key, val ]
       "INFO: Puppet changed for '#{role}': '#{old_puppet}' -> '#{puppet}'"
     )
     # set as new default
-    puppet = nil if clothing.casecmp( 'none' ).zero?
+    puppet = nil if puppet.casecmp( 'none' ).zero?
     @store.collection[ 'role_puppets' ][ role ] = puppet unless puppet.nil?
   end
 
