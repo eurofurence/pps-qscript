@@ -2440,8 +2440,11 @@ f = actor free<br>
   end
 
   def puppet_image( puppet )
-    return "<img #{$puppet_pool[ puppet ]}/>".gsub( '&', '&amp;' ) \
-      if $puppet_pool.key?( puppet )
+    return nil unless $puppet_pool.key?( puppet )
+    return nil if $puppet_pool[ puppet ].nil?
+    return nil if $puppet_pool[ puppet ] == ''
+
+    "<img #{$puppet_pool[ puppet ]}/>".gsub( '&', '&amp;' )
   end
 
   def save_html( filename, extra = '' )

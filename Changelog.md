@@ -1,4 +1,7 @@
 
+## 2023-05-12
+ * bugfix puppet without picture
+
 ## 2023-05-09
  * bugfix empty puppet
 
