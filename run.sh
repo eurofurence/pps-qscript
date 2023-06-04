@@ -40,12 +40,20 @@ diff -bq OLD/ . |
 grep -v '^Only in'
 set -e
 
-if diff -q out.html UPLOAD/out.html
+files_unchanged() {
+	for file in out.html qscript.txt availability.html assignment-list.csv
+	do
+		if ! diff -q "${file}" "UPLOAD/${file}"
+		then
+			return 1
+		fi
+	done
+	return 0
+}
+
+if files_unchanged
 then
-	if diff -q qscript.txt UPLOAD/qscript.txt
-	then
-		exit 0
-	fi
+	exit 0
 fi
 
 echo "upload"
