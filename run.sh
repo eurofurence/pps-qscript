@@ -11,7 +11,8 @@ esac
 
 make pre
 
-./read-scene.rb *scene*.wiki
+# use ls to sort the filenames
+./read-scene.rb $(ls *scene*.wiki *intro*.wiki*)
 
 #set +e
 #final_dinoex/PPSMoments qscript.txt test.tmp

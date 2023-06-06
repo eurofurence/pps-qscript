@@ -2634,10 +2634,10 @@ class Parser
   end
 
   def make_title( name )
-    out = name.slice( /^[a-z]*/ ).capitalize
+    out = name.slice( /[a-z]+/ ).capitalize
     out << 'Scene' if out == ''
     out << ' '
-    rest = name.sub( /^[a-z]*/, '' )
+    rest = name.sub( /[a-z]+/, '' )
     out << rest[ 0 ]
     out << '-'
     out << rest[ 1 ]

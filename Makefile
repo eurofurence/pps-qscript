@@ -1,6 +1,6 @@
 # Makefile
 
-SRC!=		ls *scene*.wiki
+SRC!=		ls *scene*.wiki *intro*.wiki
 ACTORS_HTML!=	ls actors/*.html
 DDATE!=		date +%Y-%m-%d
 

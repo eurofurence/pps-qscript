@@ -49,7 +49,9 @@ end
   '11_scene', '12_scene', '13_scene', '14_scene',
   '13_intro', '14_intro',
   '21_scene', '22_scene', '23_scene', '24_scene',
-  '31_scene', '32_scene', '33_scene', '34_scene'
+  '22_intro', '22_intro', '23_intro',
+  '31_scene', '32_scene', '33_scene', '34_scene',
+  '32_intro', '33_intro',
 ].each do |nexturl|
   dokuwiki.save_wiki_path( "#{$config[ 'path' ]}:#{nexturl}" )
 end
