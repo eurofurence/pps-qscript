@@ -8,11 +8,14 @@
 #
 
 require 'cgi'
+require 'yaml'
 require 'json'
 require 'fileutils'
 
 $: << '.'
 
+# wiki config file
+CONFIG_FILE = 'wiki-config.yml'.freeze
 # input for actors to wiki lines
 WIKI_ACTORS = 'wiki-actors.json'.freeze
 # input html
@@ -27,10 +30,6 @@ ACTORS_PDF_INDEX = 'actors.wiki'.freeze
 ACTORS_HTML_INDEX = 'actors-html.wiki'.freeze
 # regular expression for matching names
 MATCH_NAME = '[A-Za-z0-9_-]+'.freeze
-# hostname of EF dokuwiki
-EFHOST = 'wiki.eurofurence.org'.freeze
-# path inside EF dokuwiki
-EFPATH = 'ef27:events:pps:qscript'.freeze
 # css highlite with color
 # HIGHLITE = ' style="background-color:#FFFF00;"'.freeze
 HIGHLITE = ' class="highlite"'.freeze
@@ -41,6 +40,14 @@ CHANGED = ' class="changed"'.freeze
 
 $debug = 0
 @ignore_changed = true
+
+# read wiki paths
+def read_yaml( filename, default = {} )
+  config = default
+  return config unless File.exist?( filename )
+
+  config.merge!( YAML.load_file( filename ) )
+end
 
 # check if downloaded file has changed
 def downloaded?( filename, buffer )
@@ -322,6 +329,7 @@ def build_output( actor )
   save_actor( actor )
 end
 
+$config = read_yaml( CONFIG_FILE )
 read_changed
 @wiki_highlite = JSON.parse( File.read( WIKI_ACTORS ) )
 # pp @wiki_highlite
@@ -356,8 +364,8 @@ Dir.entries( ACTORS_DIR ).each do |file|
   end
 end
 
-namespace = EFPATH.gsub( ':', '%3A' )
-url = "https://#{EFHOST}/doku.php?id=#{EFPATH}&do=media&ns=#{namespace}"
+namespace = $config[ 'qspath' ].gsub( ':', '%3A' )
+url = "https://#{$config[ 'host' ]}/doku.php?id=#{$config[ 'qspath' ]}&do=media&ns=#{namespace}"
 wiki = "====== Actors Scripts as PDF ======
 
 Get your script via the
@@ -366,11 +374,11 @@ Get your script via the
 "
 @seen_output.keys.sort.each do |file|
   actor = file.split( '/' ).last.sub( /[.]html$/, '' )
-  wiki << "Script for {{:#{EFPATH}:actors:#{actor}.pdf|#{actor}}}\\\\\n"
+  wiki << "Script for {{:#{$config[ 'qspath' ]}:actors:#{actor}.pdf|#{actor}}}\\\\\n"
 end
 file_put_contents( ACTORS_PDF_INDEX, wiki )
 
-url = "https://#{EFHOST}/doku.php?id=#{EFPATH}&do=media&ns=#{namespace}"
+url = "https://#{$config[ 'host' ]}/doku.php?id=#{$config[ 'qspath' ]}&do=media&ns=#{namespace}"
 wiki = "====== Actors Scripts as HTML ======
 
 Get your script via the
@@ -379,7 +387,7 @@ Get your script via the
 "
 @seen_output.keys.sort.each do |file|
   actor = file.split( '/' ).last.sub( /[.]html$/, '' )
-  wiki << "Script for {{:#{EFPATH}:actors:#{actor}.html|#{actor}}}\\\\\n"
+  wiki << "Script for {{:#{$config[ 'qspath' ]}:actors:#{actor}.html|#{actor}}}\\\\\n"
 end
 file_put_contents( ACTORS_HTML_INDEX, wiki )
 

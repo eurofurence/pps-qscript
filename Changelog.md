@@ -1,6 +1,7 @@
 
 ## 2023-06-11
  * list of scenes from config
+ * use YAML config files for highlite
 
 ## 2023-06-06
  * parse intro files
