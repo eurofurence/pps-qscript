@@ -48,8 +48,10 @@ $config[ 'scenes' ].each do |nexturl|
   dokuwiki.save_wiki_path( "#{$config[ 'path' ]}:#{nexturl}" )
 end
 dokuwiki.save_wiki_path( $config[ 'puppets' ] )
-$config[ 'qsfiles' ].each do |nexturl|
-  dokuwiki.save_wiki_path( "#{$config[ 'qspath' ]}:#{nexturl}" )
+unless $config[ 'qsfiles' ].nil?
+  $config[ 'qsfiles' ].each do |nexturl|
+    dokuwiki.save_wiki_path( "#{$config[ 'qspath' ]}:#{nexturl}" )
+  end
 end
 
 exit 0
