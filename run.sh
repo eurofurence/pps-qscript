@@ -1,7 +1,10 @@
 #!/bin/sh
 LANG=de_DE.UTF-8
 export LANG
-cd "${HOME}/pps-qscript" || exit 65
+if test ! -f ./fetch-wiki.rb
+then
+	cd "${HOME}/pps-qscript" || exit 65
+fi
 set -e
 case "${1}" in
 auto)
