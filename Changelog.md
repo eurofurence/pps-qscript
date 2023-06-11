@@ -1,4 +1,7 @@
 
+## 2023-06-11
+ * list of scenes from config
+
 ## 2023-06-06
  * parse intro files
 
