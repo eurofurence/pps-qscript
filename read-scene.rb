@@ -1605,7 +1605,7 @@ class Report
         end
       end
     end
-    result = [ TODO_LIST_HEADER ]
+    result = [ TODO_LIST_HEADER.dup ]
     builds2 = builds.sort_by do |item, data|
       [ data.last, data.first, item.last.downcase ]
     end
@@ -2219,7 +2219,11 @@ class Report
 
   def puts_builds2_table( title )
     builds = list_builds2
-    @html_report << html_table( builds, title )
+    builds2 = builds.clone.map(&:clone)
+    builds2.each do |row|
+      row[2] = html_escape( row[2] )
+    end
+    @html_report << html_table( builds2, title )
   end
 
   def puts_hands_table( title )

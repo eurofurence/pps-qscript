@@ -1,6 +1,7 @@
 
 ## 2023-06-12
  * fix error on spotlight token
+ * fix escape for table 'Todo List' in out.html
 
 ## 2023-06-11
  * list of scenes from config
