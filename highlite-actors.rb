@@ -266,7 +266,7 @@ def read_changed
     case line
     when /class="plugin_include_content /
       scene = line.slice( /"plugin_include_content [^ {]+/ )
-      scene = scene.split( ':' ).last.delete( '"' ).capitalize
+      scene = scene.split( ':' ).last.delete( '"' )
       scene << '.wiki'
       next
     end
@@ -296,7 +296,7 @@ def build_output( actor )
     when /class="plugin_include_content /
       add_line( line )
       scene = line.slice( /"plugin_include_content [^ {]+/ )
-      scene = scene.split( ':' ).last.delete( '"' ).capitalize
+      scene = scene.split( ':' ).last.delete( '"' )
       # scene.sub!( /([0-9])([0-9])/, ' \1-\2' )
       scene << '.wiki'
       next
