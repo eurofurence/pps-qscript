@@ -1,4 +1,7 @@
 
+## 2023-06-12
+ * fix error on spotlight token
+
 ## 2023-06-11
  * list of scenes from config
  * use YAML config files for highlite

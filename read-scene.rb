@@ -1198,7 +1198,10 @@ class Report
     if name.respond_to?( :key? )
       obj = find_item_of_type( name[ :name ], name[ :type ] )
       # p [ name, obj ]
-      return obj[ :ref ]
+      return obj[ :ref ] unless obj.nil?
+
+      pp [ 'html_object_ref not found', name ]
+      return nil
     end
 
     obj = find_item( name )
@@ -1220,7 +1223,9 @@ class Report
       return html_escape( name[ :name ] ) if name[ :name ].casecmp( 'none' ).zero?
 
       obj = find_item_of_type( name[ :name ], name[ :type ] )
-      return to_html( obj[ :ref ], name[ :name ] )
+      return to_html( obj[ :ref ], name[ :name ] ) unless obj.nil?
+
+      return html_escape( name[ :name ] )
     end
 
     obj = find_item( name )
