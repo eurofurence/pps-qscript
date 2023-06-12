@@ -15,8 +15,7 @@ esac
 make pre
 
 # use ls to sort the filenames
-./read-scene.rb $(ls *scene*.wiki *intro*.wiki*)
-
+./read-scene.rb $(make -V SRC)
 #set +e
 #final_dinoex/PPSMoments qscript.txt test.tmp
 #set -e
@@ -27,7 +26,10 @@ make pre
 #	mv -vf test.tmp test.html
 #fi
 
-./availability.rb
+if test -f media/availability.csv
+then
+	./availability.rb
+fi
 
 make
 
