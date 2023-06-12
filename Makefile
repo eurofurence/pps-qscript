@@ -3,16 +3,23 @@
 SRC!=		ls *scene*.wiki *intro*.wiki
 ACTORS_HTML!=	ls actors/*.html
 DDATE!=		date +%Y-%m-%d
+QSPATH!=	grep qspath wiki-config.yml | cut -d '"' -f2
 
 ACTORS_HTMLS=	${ACTORS_HTML:S/.html/.html,/g:S/,$//}
 ACTORS_PDF=	${ACTORS_HTML:S/html/pdf/g}
 ACTORS_LIST=	${ACTORS_HTML:S/.html//g}
 
 all:	subs.txt roles.txt numbered-qscript.txt out.txt \
-	availability.txt \
-	test.txt test.wdiff \
 	all.wiki clothes.pdf all.pdf puppet_pool.csv tidy.html \
 	actors/run.log actors
+
+.if exists(media/availability.csv)
+all:	availability.txt
+.endif
+
+.if exists(test.html)
+all:	test.txt test.wdiff
+.endif
 
 pre:	all.wiki puppet_pool.csv
 
@@ -75,7 +82,7 @@ puppet_pool.csv:	puppet_pool.rb puppet_pool.wiki media/smileys.txt
 	./get-media.sh
 
 all.html:	${SRC} UPLOAD/all.wiki
-	./fetch-wiki.rb ef27:events:pps:qscript:all.html
+	./fetch-wiki.rb "${QSPATH}:all.html"
 
 tidy.html:	out.html
 	-tidy4 -wrap 5000 out.html > tidy.html
