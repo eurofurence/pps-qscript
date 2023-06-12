@@ -56,7 +56,7 @@ all.pdf:	makepdf.sh makepdf.sed all.html
 all.ps:		all.pdf
 	pdf2ps all.pdf
 
-actors/run.log:	highlite-actors.rb all.html wiki_actors.json
+actors/run.log:	highlite-actors.rb all.html wiki-actors.json
 	./highlite-actors.rb
 
 .for actor in ${ACTORS_LIST}
