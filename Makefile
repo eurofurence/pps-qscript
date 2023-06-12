@@ -1,6 +1,6 @@
 # Makefile
 
-SRC!=		ls *scene*.wiki *intro*.wiki
+SRC!=		ls *.wiki | grep -E 'scene|intro'
 ACTORS_HTML!=	ls actors/*.html
 DDATE!=		date +%Y-%m-%d
 QSPATH!=	grep qspath wiki-config.yml | cut -d '"' -f2
