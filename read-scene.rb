@@ -2494,6 +2494,7 @@ end
 #   Parser.parse_all_props( line )
 #   Parser.parse_section_data( section, line )
 #   Parser.parse_table_role( line )
+#   Parser.parse_table_prerec( line )
 #   Parser.split_dokuwiki_table( line )
 #   Parser.parse_table_prop( line )
 #   Parser.parse_table_backdrop( line )
@@ -3080,6 +3081,28 @@ pp [ :list_one_person, key, val ]
     list_one_person( role )
   end
 
+  # Role, Actor, Hands, Voice, Puppet, Costume
+  def parse_table_prerec( line )
+    list2 = line.split( '|' ).map( &:strip )
+    list2.map! do |f|
+      f == '' ? nil : f
+    end
+    role = list2[ 1 ]
+    if role.nil?
+      # add_error_note( "Skipping Empty Prerec: #{line}" )
+      return
+    end
+    voice = list2[ 2 ]
+    voice.sub!( /Voice: */, '' ) unless voice.nil?
+    if voice.nil? or voice == ''
+      add_error_note( "Missing Voice for Prerec: #{line}" )
+      return
+    end
+    @store.timeframe.add_actor_for( voice, role, 'voice' )
+    @store.add_item( 'Role', role, voice: voice )
+    @store.add_item( 'Actor', voice, role: role, voice: true )
+  end
+
   def split_dokuwiki_table( line )
     line.split( '|' )[ 1 .. ].map( &:strip )
   end
@@ -3130,6 +3153,7 @@ pp [ :list_one_person, key, val ]
     when 'On 2nd rail', 'On playrail', 'Hand props', 'Special effects'
       parse_table_prop( line )
     when 'PreRec'
+      parse_table_prerec( line )
     else
       p [ 'parse_table_all', @section, line ]
     end

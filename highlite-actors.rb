@@ -172,6 +172,12 @@ def match_pattern2( scene, actor, line )
         return true
       end
       next
+    when /%(SND)%/
+      if /[^a-z0-9]#{pattern}[^a-z0-9].*:/i =~ line
+        debug( scene, actor, pattern, line )
+        return true
+      end
+      next
     when /%(HND|FOG|SPT)%/, /Setting:/
       if /[^a-z0-9]#{actor}[^a-z0-9]/i =~ line
         debug( scene, actor, pattern, line )
@@ -319,7 +325,7 @@ def build_output( actor )
     when /table/
       table_line( scene, actor, line )
       next
-    when /%(AMB|LIG|MIX|MUS|PRE|SND|VID)%/
+    when /%(AMB|LIG|MIX|MUS|PRE|VID)%/
       add_line( line )
       next
     end

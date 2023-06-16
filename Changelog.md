@@ -1,4 +1,7 @@
 
+## 2023-06-16
+ * parse prerec tables for cast and hightlite
+
 ## 2023-06-12
  * fix error on spotlight token
  * fix escape for table 'Todo List' in out.html
