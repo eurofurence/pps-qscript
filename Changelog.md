@@ -1,4 +1,7 @@
 
+## 2023-06-24
+ * fix availability.html with unseen actors
+
 ## 2023-06-16
  * parse prerec tables for cast and hightlite
 

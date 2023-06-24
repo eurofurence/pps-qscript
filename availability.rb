@@ -179,12 +179,18 @@ def columns_and_rows( event )
 end
 
 def conflict_stepin?( name2, name1 )
-  return true unless @people2.key?( name2 )
+  unless @people2.key?( name2 )
+    pp [ :conflict_stepin_unknown, name2, name1 ] if @debug
+    return false
+  end
 
   @people2[ name2 ].each_key do |scene|
+    pp [ :conflict_stepin_name2, name2, name1, scene ] if @debug
     return true if @missing[ name1 ].key?( scene )
   end
+
   @missing[ name1 ].each_key do |scene|
+    pp [ :conflict_stepin_name1, name2, name1, scene ] if @debug
     return true if @people2[ name2 ].key?( scene )
   end
 
@@ -198,9 +204,11 @@ def conflict?( name2, name1 )
   return false unless @people2.key?( name1 )
 
   @people2[ name2 ].each_key do |scene|
+    pp [ :conflict2, name2, name1, scene ] if @debug
     return true if @people2[ name1 ].key?( scene )
   end
   @people2[ name1 ].each_key do |scene|
+    pp [ :conflict1, name2, name1, scene ] if @debug
     return true if @people2[ name2 ].key?( scene )
   end
 
@@ -345,6 +353,8 @@ def html_table_r( table, title, tag = '', head_row = nil )
   html << tag.sub( '<', '</' )
   html
 end
+
+@debug = ARGV.include?( 'debug' )
 
 @actors = JSON.parse( File.read( ASSIGNMENT_FILE ))
 # pp @actors
