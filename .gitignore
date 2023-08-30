@@ -28,6 +28,6 @@ project
 project.old
 qscript.txt
 subs.*
-sync.sh
+sync*.sh
 roles.*
 test.*

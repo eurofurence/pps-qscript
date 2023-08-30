@@ -18,8 +18,9 @@ case "${1}" in
 clothes.pdf)
 	make_pdf clothes.html tmp.clothes.html clothes.pdf -O Landscape
 	;;
-dinoex.pdf)
-	make_pdf dinoex.html tmp.dinoex.html dinoex.pdf
+dinoex*.pdf)
+	name="${1%.*}"
+	make_pdf "${name}.html" "tmp.${name}.html" "${name}.pdf"
 	;;
 break.pdf)
 	make_pdf break.html tmp.break.html break.pdf --grayscale --footer-right "edited ${ddate} [page]/[topage]" --zoom 1.35 --margin-top 15 --margin-bottom 15 --margin-left 15 --margin-right 15
