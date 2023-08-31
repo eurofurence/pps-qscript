@@ -92,7 +92,7 @@ def parse_role_name( text )
   rest = text.gsub( / *\[[^\]]*\]/, '' )
   rest.gsub!( /^The /, '' )
   list = []
-  while /^#{MATCH_NAME}( and |, *)/ =~ rest
+  while /^#{MATCH_NAME}( and |, *|&#039;s *)/ =~ rest
     name, rest = rest.split( / and |, */, 2 )
     list.push( name )
   end
