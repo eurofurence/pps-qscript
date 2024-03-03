@@ -1,33 +1,43 @@
 
-
-==== ##text## ====
-	A new scene
-
-== DIALOGUE ==
-== INTRO ==
-
-Header:
+==== ##name of scene## ====
 
     * Setting: ##description##
       * Sub-Setting ##number##: ##description##
-    * Stage setup:
-    * Backdrop:
-      * Left: #name##
-      * Middle: #name##
-      * <tech>##tech prop##</tech> ##description##
-      * Right: #name##
-    * On 2nd rail:
-      * <sp>##prop##</sp>
-    * On playrail:
-      * <fp>##prop##</fp>
-    * Hand props:
-      * <pp>##prop##</pp>
-      * <hp>##prop##</hp>
+      
+    * Stage setup
+      <tech>##tech prop##</tech> |##description##
+      
+    * Backdrop
+      |Left: #name##
+      |Middle: #name##
+      |Right: #name##
+      |<tech>##tech prop##</tech> |##description## |
+      |<sfx>##special effect##</sfx> |##hand## |##description## |
+      
+    * On 2nd rail
+      |<sp>##prop##</sp> |##hand## | ##position## ##description## |
+      
+    * On playrail
+      |<fp>##prop##</fp> |##hand## | ##position## ##description## |
+      
+    * Hand props
+      |<pp>##prop##</pp> |##hand## |##description## |
+      |<hp>##prop##</hp> |##hand## |##description## |
+      
     * Special effects:
+      |<sfx>##special effect##</sfx> |##hand## |##description## |
+      
     * PreRec:
-    * Puppets:
-    * Puppets:
-      * ##role## (##actor##, ##hands## |##puppet## |##clothing##)
+      |##role## |##voice## |##description## |
+      
+    * Role
+      |##role## |##actor## |##hands## |##voice## |##puppet## |##costume |
+    
+== TECH PREROLL ==
+
+== DIALOGUE ==
+
+== INTRO ==
 
 %HND% Curtain - open
 	Start of scene
