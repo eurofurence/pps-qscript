@@ -1,6 +1,9 @@
 
+## 2024-02-04
+ * allow ' in names
+
 ## 2023-08-81
- * fix highlite with Name's
+ * fix highlite with name's
 
 ## 2023-06-24
  * fix availability.html with unseen actors

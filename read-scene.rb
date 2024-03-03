@@ -41,7 +41,7 @@ ASSIGNMENT_LIST_FILE = 'assignment-list.csv'.freeze
 
 PEOPLE_LIST_FILE = 'people.json'.freeze
 # regular expression for matching names
-MATCH_NAME = '[A-Za-z0-9_-]+'.freeze
+MATCH_NAME = '[A-Za-z0-9_\'-]+'.freeze
 # regular expression for matching names within a tag
 MATCH_SNAME = '[^<]+'.freeze
 

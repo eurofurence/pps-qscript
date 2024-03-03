@@ -29,7 +29,7 @@ ACTORS_PDF_INDEX = 'actors.wiki'.freeze
 # output index for html
 ACTORS_HTML_INDEX = 'actors-html.wiki'.freeze
 # regular expression for matching names
-MATCH_NAME = '[A-Za-z0-9_-]+'.freeze
+MATCH_NAME = '[A-Za-z0-9_\'-]+'.freeze
 # css highlite with color
 # HIGHLITE = ' style="background-color:#FFFF00;"'.freeze
 HIGHLITE = ' class="highlite"'.freeze
