@@ -1916,7 +1916,9 @@ class Report
       next unless $puppet_builders.key?( puppet )
 
       builder = $puppet_builders[ puppet ]
-      merge_merge_plain( cast, builder, 'Puppet Builders' )
+      builder.split( '/' ).each do |builder2|
+        merge_merge_plain( cast, builder2.strip, 'Puppet Builders' )
+      end
     end
     cast
   end
