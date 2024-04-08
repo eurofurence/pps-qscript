@@ -29,7 +29,8 @@ ACTORS_PDF_INDEX = 'actors.wiki'.freeze
 # output index for html
 ACTORS_HTML_INDEX = 'actors-html.wiki'.freeze
 # regular expression for matching names
-MATCH_NAME = '[A-Za-z0-9_\'-]+'.freeze
+# U+0430, 0xD0 0xB0, Cyrillic Small Letter A
+MATCH_NAME = "[A-Za-z0-9\u0430_\'-]+".freeze
 # css highlite with color
 # HIGHLITE = ' style="background-color:#FFFF00;"'.freeze
 HIGHLITE = ' class="highlite"'.freeze
@@ -82,7 +83,8 @@ end
 
 # save actor HTML file
 def save_actor( actor )
-  filename = "#{ACTORS_DIR}/#{actor.downcase.delete( "'’" )}.html"
+  # U+2019, 0xe2 0x80 0x99, RIGHT SINGLE QUOTATION MARK
+  filename = "#{ACTORS_DIR}/#{actor.downcase.delete( "'\u2019" )}.html"
   @seen_output[ filename ] = true
   file_put_contents( filename, @out )
 end

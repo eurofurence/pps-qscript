@@ -41,7 +41,8 @@ ASSIGNMENT_LIST_FILE = 'assignment-list.csv'.freeze
 
 PEOPLE_LIST_FILE = 'people.json'.freeze
 # regular expression for matching names
-MATCH_NAME = '[A-Za-z0-9_\'-]+'.freeze
+# U+0430, 0xD0 0xB0, Cyrillic Small Letter A
+MATCH_NAME = "[A-Za-z0-9\u0430_\'-]+".freeze
 # regular expression for matching names within a tag
 MATCH_SNAME = '[^<]+'.freeze
 

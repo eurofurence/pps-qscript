@@ -1,4 +1,7 @@
 
+## 2024-04-08
+ * allow cyrillic a in names
+
 ## 2024-03-19
  * credit mutiple puppet builders
 
