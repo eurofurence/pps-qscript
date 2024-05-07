@@ -2341,10 +2341,10 @@ f = actor free<br>
           next if seen.key?( name )
           next unless hash[ 'props_hands' ].key?( name )
 
-          act = hash[ 'props_hands' ][ name ].join( ', ' )
-          next if act.casecmp( 'none' ).zero?
-
-          rows.push( [ type, name, act ] )
+          hash[ 'props_hands' ][ name ].each do |act|
+            next if act.casecmp( 'none' ).zero?
+            rows.push( [ type, name, act ] )
+          end
           seen[ name ] = true
         end
       end

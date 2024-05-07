@@ -1,4 +1,8 @@
 
+## 2024-05-07
+ * generate separate rows when a prop needs more than one hand
+   in 'People export' and 'assignment-list.csv'.
+
 ## 2024-04-08
  * allow cyrillic a in names
 
