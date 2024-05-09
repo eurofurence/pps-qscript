@@ -92,9 +92,10 @@ end
 # get list of roles from wiki text
 def parse_role_name( text )
   rest = text.gsub( / *\[[^\]]*\]/, '' )
+  rest.gsub!( '&#039;', "'" )
   rest.gsub!( /^The /, '' )
   list = []
-  while /^#{MATCH_NAME}( and |, *|&#039;s *)/ =~ rest
+  while /^#{MATCH_NAME}( and |, *|'s *)/ =~ rest
     name, rest = rest.split( / and |, */, 2 )
     list.push( name )
   end
