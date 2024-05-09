@@ -6,4 +6,5 @@ s|src="/lib/exe/js.php[^"]*||g
 s|src="/lib/exe/jquery.php[^"]*||g
 s|src="/lib/exe/fetch.php[^"]*||g
 s|src="/lib/exe/indexer.php[^"]*||g
+s|src="/lib/exe/taskrunner.php[^"]*||g
 #s|DinoEx|<mark>DinoEx</mark>|g
