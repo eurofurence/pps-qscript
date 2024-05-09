@@ -3892,14 +3892,15 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
     list = []
     while /^#{MATCH_NAME}( and |, *)/ =~ rest
       name, rest = rest.split( / and |, */, 2 )
+      name.sub!( /'s$/, '' )
       list.push( name )
     end
     name, rest = rest.split( ' ', 2 )
     case name
-    when /^#{MATCH_NAME}:*$/
-      list.push( name.sub( ':', '' ) )
     when /^#{MATCH_NAME}'s:*$/
-      name = name.sub( '\'s', '' )
+      name.sub!( /'s$/, '' )
+      list.push( name.sub( ':', '' ) )
+    when /^#{MATCH_NAME}:*$/
       list.push( name.sub( ':', '' ) )
     else
       add_error_note( "Error in Role: '#{name}', #{text}" )

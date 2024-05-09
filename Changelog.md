@@ -1,6 +1,7 @@
 
 ## 2024-05-09
  * fix highlite with ' in names
+ * fix regression with ' in names
 
 ## 2024-05-07
  * generate separate rows when a prop needs more than one hand

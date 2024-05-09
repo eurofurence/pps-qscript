@@ -94,14 +94,19 @@ def parse_role_name( text )
   rest = text.gsub( / *\[[^\]]*\]/, '' )
   rest.gsub!( '&#039;', "'" )
   rest.gsub!( /^The /, '' )
+  rest.gsub!( /^A /, '' )
   list = []
-  while /^#{MATCH_NAME}( and |, *|'s *)/ =~ rest
+  while /^#{MATCH_NAME}( and |, *)/ =~ rest
     name, rest = rest.split( / and |, */, 2 )
+    name.sub!( /'s$/, '' )
     list.push( name )
   end
   # Scene Sketches
   name = rest.split( ' ', 2 )[ 0 ]
   case name
+  when /^#{MATCH_NAME}'s:*$/
+    name.sub!( /'s$/, '' )
+    list.push( name.sub( ':', '' ) )
   when /^#{MATCH_NAME}:*$/
     list.push( name.sub( ':', '' ) )
   when /^#{MATCH_NAME} *=*$/
