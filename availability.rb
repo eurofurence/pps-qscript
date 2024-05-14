@@ -372,6 +372,8 @@ end
 @html_report = ''
 @events.each do |event|
   table = make_table( event )
+  next if event.nil?
+
   @html_report << html_table_r( table, event )
 end
 

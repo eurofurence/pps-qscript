@@ -1,4 +1,7 @@
 
+## 2024-05-14
+ * skip emtpy columns in availability.csv
+
 ## 2024-05-09
  * fix highlite with ' in names
  * fix regression with ' in names
