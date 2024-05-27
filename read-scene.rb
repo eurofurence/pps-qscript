@@ -3520,6 +3520,8 @@ pp [ :list_one_person, key, val ]
   end
 
   def report_untagged_props( line )
+    return unless $config[ 'report_untagged' ]
+
     untagged = line.gsub( /<[^<]*<[^>]*>/, '' ).downcase
     untagged.gsub!( /s$/, '' )
     @scene_props_names.each_pair do |prop, names|
