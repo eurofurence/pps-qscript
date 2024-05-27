@@ -3519,6 +3519,16 @@ pp [ :list_one_person, key, val ]
     hands
   end
 
+  def report_untagged_props( line )
+    untagged = line.gsub( /<[^<]*<[^>]*>/, '' ).downcase
+    untagged.gsub!( /s$/, '' )
+    @scene_props_names.each_pair do |prop, names|
+      # pp [ prop, names.first ]
+      next unless untagged.include?( prop )
+      add_todo( "#{names.first} #{prop}: not tagged in '#{line}'" )
+    end
+  end
+
   def search_handprop( line )
     props = []
     return props if line.nil?
@@ -3542,6 +3552,7 @@ pp [ :list_one_person, key, val ]
 
     props.concat( search_simple_props( line, 'pr', 'fp' ) )
     props.concat( search_simple_props( line, '2nd', 'sp' ) )
+    report_untagged_props( line )
     props
   end
 
@@ -3644,6 +3655,9 @@ pp [ :list_one_person, key, val ]
           @store.timeframe.add( storekey, text )
         end
         @store.timeframe.add_list( storekey, result_key, '', text )
+        if key == '%ATT%'
+          report_untagged_props( line )
+        end
         return true
       end
     end
@@ -3931,6 +3945,7 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
       when /^#{key} /
         line.strip!
         text = line.sub( /^#{key}  */, '' )
+	report_untagged_props( text )
         parse_action( text, qscript_key, result_key )
         return true
       end
@@ -4311,6 +4326,7 @@ $config = read_yaml(
   'compat' => false,
   'compat2' => true,
   'assignment_show_all_hands' => true,
+  'report_untagged' => false,
   'debug' => 0
 )
 # pp $config

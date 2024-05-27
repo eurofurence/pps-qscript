@@ -1,4 +1,8 @@
 
+## 2024-05-27
+ * new config option: report_untagged
+   warn if a possible untagged prop is found
+
 ## 2024-05-14
  * skip emtpy columns in availability.csv
 
