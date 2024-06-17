@@ -10,7 +10,8 @@ ACTORS_PDF=	${ACTORS_HTML:S/html/pdf/g}
 ACTORS_LIST=	${ACTORS_HTML:S/.html//g}
 
 all:	subs.txt roles.txt numbered-qscript.txt out.txt \
-	all.wiki clothes.pdf all.pdf puppet_pool.csv tidy.html \
+	all.wiki plain.wiki clothes.pdf all.pdf \
+	puppet_pool.csv tidy.html \
 	actors/run.log actors
 
 .if exists(media/availability.csv)
@@ -76,6 +77,9 @@ actors::	${ACTORS_PDF}
 
 all.wiki:	makeall.sh header.wiki index.wiki
 	./makeall.sh > all.wiki
+
+plain.wiki:	Makefile all.wiki
+	sed -e '/^@media (prefers-color-scheme/,/^}/d' all.wiki > plain.wiki
 
 puppet_pool.csv:	puppet_pool.rb puppet_pool.wiki media/smileys.txt
 	./puppet_pool.rb

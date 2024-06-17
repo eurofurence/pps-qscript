@@ -1,4 +1,8 @@
 
+## 2024-06-17
+ * create "plain.wiki" without dark mode
+   for viewing the script inside dokuwiki
+
 ## 2024-05-27
  * new config option: report_untagged
    warn if a possible untagged prop is found

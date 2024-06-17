@@ -57,6 +57,7 @@ end
   'out.html',
   'out.txt',
   'all.wiki',
+  'plain.wiki',
   'clothes.pdf',
   'all.pdf',
   'todo-list.csv',
