@@ -1,4 +1,7 @@
 
+## 2024-07-22
+ * warn if a puppet is not in the pool
+
 ## 2024-06-17
  * create "plain.wiki" without dark mode
    for viewing the script inside dokuwiki

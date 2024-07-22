@@ -541,6 +541,7 @@ end
 #   Store.error_message( list )
 #   Store.check_actor( name )
 #   Store.check_puppet( role, name )
+#   Store.check_puppet_pool( role, name )
 #   Store.check_clothing( puppet, name )
 #   Store.uniq_player( player, prefix, name )
 #   Store.add_role_collection( name, what, player )
@@ -734,6 +735,13 @@ class Store
       )
     end
     nil
+  end
+
+  # check a puppet for wiki pool
+  def check_puppet_pool( role, name )
+    return nil if $puppet_builders.key?( name )
+
+    error_message( "Puppet '#{name}' for '#{role}' is not in the pool" )
   end
 
   # check a costume for collisions
@@ -2487,7 +2495,7 @@ end
 #   Parser.drop_person_player( name, what, players )
 #   Parser.drop_person( name )
 #   Parser.list_one_person2( name )
-#   Parser.check_role_list( list )
+#   Parser.check_role_list( role, list )
 #   Parser.parse_single_puppet( line )
 #   Parser.suffix_props( line, key )
 #   Parser.tagged_props( line, key )
@@ -2886,10 +2894,11 @@ pp [ :list_one_person, key, val ]
     @store.collection[ 'role_costumes' ][ name ] = clothing
   end
 
-  def check_role_list( list )
+  def check_role_list( role, list )
     add_todo( @store.check_actor( list[ 0 ] ) )
     add_todo( @store.check_actor( list[ 1 ] ) )
-    add_todo( @store.check_puppet( list[ 0 ], list[ 3 ] ) )
+    add_todo( @store.check_puppet( role, list[ 3 ] ) )
+    add_todo( @store.check_puppet_pool( role, list[ 3 ] ) )
     add_todo( @store.check_clothing( list[ 3 ], list[ 4 ] ) )
   end
 
@@ -2937,7 +2946,7 @@ pp [ :list_one_person, key, val ]
     #   return
     # end
     @store.add_role( role, list )
-    check_role_list( list )
+    check_role_list( role, list )
     list_one_person( role )
   end
 
@@ -3080,7 +3089,7 @@ pp [ :list_one_person, key, val ]
         @store.error_message( "Missing name for #{type} on role '#{role}'" )
       )
     end
-    check_role_list( list )
+    check_role_list( role, list )
     list_one_person( role )
   end
 
@@ -3824,7 +3833,7 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
       ]
     end
     @store.add_role( name, list )
-    check_role_list( list )
+    check_role_list( name, list )
     list_one_person( name )
   end
 
