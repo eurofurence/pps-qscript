@@ -1,4 +1,7 @@
 
+## 2024-08-05
+ * support more lines in the header of a scene
+
 ## 2024-07-22
  * warn if a puppet is not in the pool
 
