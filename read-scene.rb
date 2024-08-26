@@ -4056,7 +4056,7 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
   def print_unknown_line( line )
     case line
     when '^Part^Time|', /^\|(Intro|Dialogue)\|/, /^\|\*\*Scene Total\*\* \|/,
-         /^\* Mockup only/, /^Light .*:/,
+         /^\* Mockup only/, /^Light .*:/, /^==RATS==/,
          /:events:pps:script:/
       return
     end
