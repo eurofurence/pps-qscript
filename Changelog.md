@@ -1,6 +1,7 @@
 
 ## 2024-08-26
  * support RATS header
+ * add stagehand for Curtain
 
 ## 2024-08-05
  * support more lines in the header of a scene

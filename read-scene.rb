@@ -2570,6 +2570,8 @@ end
 #   Parser.parse_spot( text )
 #   Parser.add_fog_hands( text )
 #   Parser.parse_fog( text )
+#   Parser.end_setting
+#   Parser.curtain_hand( text )
 #   Parser.parse_curtain( line )
 #   Parser.intro_line( line )
 #   Parser.parse_script_line( line )
@@ -4236,16 +4238,44 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
     add_fog_hands( text )
   end
 
-  def parse_curtain( line )
-    unless @setting == ''
-      print "Setting: #{@store.timeframe.timeframe}: "
-      stagehands = collect_handprop( @setting, nil )
-      add_stagehands( stagehands, 'Setting' )
-      pp stagehands
-      @setting = ''
-      # pp @scene_props
+  def end_setting
+    return if @setting == ''
+
+    print "Setting: #{@store.timeframe.timeframe}: "
+    stagehands = collect_handprop( @setting, nil )
+    add_stagehands( stagehands, 'Setting' )
+    pp stagehands
+    @setting = ''
+    # pp @scene_props
+  end
+
+  def curtain_hand( text )
+    prop = 'Curtain'
+    kprop = prop.downcase
+    return unless @scene_props_hands.key?( kprop )
+
+    hands = get_stagehand( kprop )
+    p [ '%HND%', prop, hands ] unless $debug.zero?
+    hands.each do |hand|
+      if hand.casecmp( 'none' ).zero?
+        collect_handprop( text, nil )
+        @qscript.puts_key( 'stagehand', hand, text )
+        @report.puts2_key( 'Stage', hand, text )
+        add_todo( "%HND% ohne Stagehand: #{text}" )
+        next 
+      end 
+    
+      @store.add_item( 'Actor', hand, prop: kprop, stagehand: true )
+      add_todo( @store.check_actor( hand ) )
+      collect_handprop( text, nil )
+      parse_stagehand( hand, text, 'stagehand', 'Stage' )
+      @store.timeframe.add_actor_for( hand, kprop )
     end
+  end
+
+  def parse_curtain( line )
     curtain( line.sub( /^%HND% Curtain - */, '' ) )
+    curtain_hand( line.sub( /^%HND% */, '' ) )
   end
 
   def intro_line( line )
@@ -4268,6 +4298,7 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
       @section = 'Setting'
       return
     when /^%HND% Curtain - /
+      end_setting
       parse_curtain( line )
       return
     when /^%HND% /
