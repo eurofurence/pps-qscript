@@ -17,7 +17,7 @@ $: << '.'
 # wiki config file
 CONFIG_FILE = 'wiki-config.yml'.freeze
 # list of patterns with different color
-COLOR_CONFIG_FILE = 'colors.ini'.freeze
+COLOR_CONFIG_FILE = 'colors.wiki'.freeze
 # input for actors to wiki lines
 WIKI_ACTORS = 'wiki-actors.json'.freeze
 # input html
@@ -55,8 +55,11 @@ end
 # read patters for color replacements from given file
 def read_colors( filename )
   @colors = {}
+  return unless File.exist?( filename )
+
   File.read( filename ).split( "\n" ).each do |line|
     next if line =~ /^#/
+    next if line =~ /^<[\/]*file/
     next unless line.include?( '|' )
 
     script, pattern, color = line.split( '|', 3 )

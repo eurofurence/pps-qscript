@@ -17,9 +17,9 @@ $: << '.'
 # global config file
 CONFIG_FILE = 'read-scene.yml'.freeze
 # config file for groups of roles
-ROLES_CONFIG_FILE = 'roles.ini'.freeze
+ROLES_CONFIG_FILE = 'roles.wiki'.freeze
 # config file for patterns to replace
-SUBS_CONFIG_FILE = 'subs.ini'.freeze
+SUBS_CONFIG_FILE = 'subs.wiki'.freeze
 # list of puppets and image html code
 PUPPET_POOL_FILE = 'puppet_pool.csv'.freeze
 # general header for html output files
@@ -158,9 +158,12 @@ end
 def read_subs( filename )
   $subs = {}
   $subs_count = {}
+  return unless File.exist?( filename )
+
   scene = 'global'
   File.read( filename ).split( "\n" ).each do |line|
     next if line =~ /^#/
+    next if line =~ /^<[\/]*file/
 
     unless line.include?( ';' )
       scene = line.delete( '[]' )
@@ -205,6 +208,7 @@ class RolesConfig
 
     File.read( filename ).split( "\n" ).each do |line|
       next if /^#/ =~ line
+      next if line =~ /^<[\/]*file/
 
       list = line.split( ';' )
       scene2, group = list[ 0 .. 1 ]

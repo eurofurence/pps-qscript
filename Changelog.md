@@ -1,6 +1,8 @@
 
 ## 2024-09-01
  * support extra colors for patterns
+ * get ini files from wiki
+ * ini files are now optional
 
 ## 2024-08-26
  * support RATS header

@@ -52,8 +52,6 @@ end
 [
   'qscript.txt',
   'numbered-qscript.txt',
-  'subs.txt',
-  'roles.txt',
   'out.html',
   'out.txt',
   'all.wiki',

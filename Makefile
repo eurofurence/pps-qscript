@@ -9,7 +9,7 @@ ACTORS_HTMLS=	${ACTORS_HTML:S/.html/.html,/g:S/,$//}
 ACTORS_PDF=	${ACTORS_HTML:S/html/pdf/g}
 ACTORS_LIST=	${ACTORS_HTML:S/.html//g}
 
-all:	subs.txt roles.txt numbered-qscript.txt out.txt \
+all:	numbered-qscript.txt out.txt \
 	all.wiki plain.wiki clothes.pdf all.pdf \
 	puppet_pool.csv tidy.html \
 	actors/run.log actors
@@ -23,12 +23,6 @@ all:	test.txt test.wdiff
 .endif
 
 pre:	all.wiki puppet_pool.csv
-
-subs.txt:	subs.ini
-	rsync -aq subs.ini subs.txt
-
-roles.txt:	roles.ini
-	rsync -aq roles.ini roles.txt
 
 numbered-qscript.txt:	qscript.txt
 	cat -n qscript.txt > numbered-qscript.txt
