@@ -1,4 +1,7 @@
 
+## 2024-09-01
+ * support extra colors for patterns
+
 ## 2024-08-26
  * support RATS header
  * add stagehand for Curtain

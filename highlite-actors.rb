@@ -16,6 +16,8 @@ $: << '.'
 
 # wiki config file
 CONFIG_FILE = 'wiki-config.yml'.freeze
+# list of patterns with different color
+COLOR_CONFIG_FILE = 'colors.ini'.freeze
 # input for actors to wiki lines
 WIKI_ACTORS = 'wiki-actors.json'.freeze
 # input html
@@ -30,7 +32,7 @@ ACTORS_PDF_INDEX = 'actors.wiki'.freeze
 ACTORS_HTML_INDEX = 'actors-html.wiki'.freeze
 # regular expression for matching names
 # U+0430, 0xD0 0xB0, Cyrillic Small Letter A
-MATCH_NAME = "[A-Za-z0-9\u0430_\'-]+".freeze
+MATCH_NAME = "[A-Za-z0-9\u0430_'-]+".freeze
 # css highlite with color
 # HIGHLITE = ' style="background-color:#FFFF00;"'.freeze
 HIGHLITE = ' class="highlite"'.freeze
@@ -48,6 +50,19 @@ def read_yaml( filename, default = {} )
   return config unless File.exist?( filename )
 
   config.merge!( YAML.load_file( filename ) )
+end
+
+# read patters for color replacements from given file
+def read_colors( filename )
+  @colors = {}
+  File.read( filename ).split( "\n" ).each do |line|
+    next if line =~ /^#/
+    next unless line.include?( '|' )
+
+    script, pattern, color = line.split( '|', 3 )
+    @colors[ script ] = {} unless @colors.key?( script )
+    @colors[ script ][ pattern ] = color
+  end
 end
 
 # check if downloaded file has changed
@@ -121,6 +136,7 @@ end
 # show some debug info
 def debug( scene, actor, pattern, line )
   return if $debug.zero?
+  return unless actor == 'Eisfuchs'
 
   p [ scene, actor, pattern ]
   p line
@@ -157,7 +173,7 @@ end
 
 # search wiki text for actor in the line
 def match_pattern2( scene, actor, line )
-  return false unless @wiki_highlite[ scene ].key?( actor )
+  return nil unless @wiki_highlite[ scene ].key?( actor )
 
   @wiki_highlite[ scene ][ actor ].each do |pattern|
     # item
@@ -166,52 +182,62 @@ def match_pattern2( scene, actor, line )
       next unless /[^a-z0-9]#{pattern} *</i =~ line
 
       debug( scene, actor, pattern, line )
-      return true
+      return pattern
     end
 
     case line
     when /%(ATT)%/
       if /[^a-z0-9]#{pattern}[^a-z0-9]/i =~ line
         debug( scene, actor, pattern, line )
-        return true
+        return pattern
       end
       if /[^a-z0-9]#{actor}[^a-z0-9]/i =~ line
         debug( scene, actor, pattern, line )
-        return true
+        return pattern
       end
       next
     when /%(SND)%/
       if /[^a-z0-9]#{pattern}[^a-z0-9].*:/i =~ line
         debug( scene, actor, pattern, line )
-        return true
+        return pattern
       end
       next
     when /%(HND|FOG|SPT)%/, /Setting:/
       if /[^a-z0-9]#{actor}[^a-z0-9]/i =~ line
         debug( scene, actor, pattern, line )
-        return true
+        return pattern
       end
       next
     when /%ACT%/
       line2 = line.sub( /\n*.*%ACT%[^>]*> */, '' )
       next unless match_list( scene, actor, pattern, line2 )
 
-      return true
+      return pattern
     end
     line2 = line.sub( /^\n/, '' )
     next if /^###/ =~ line2
 
-    return true if match_list( scene, actor, pattern, line2 )
+    return pattern if match_list( scene, actor, pattern, line2 )
   end
-  false
+  nil
+end
+
+# find out the color for highlite
+def find_highlite_color( actor, pattern )
+  return HIGHLITE unless @colors.key?( actor )
+  return HIGHLITE unless @colors[ actor ].key?( pattern )
+
+  " class=\"#{@colors[ actor ][ pattern ]}\""
 end
 
 # modify line when an actor was found
 def parse_patterns( scene, actor, line )
   return '' unless @wiki_highlite[ scene ].key?( actor )
-  return '' unless match_pattern2( scene, actor, line )
 
-  HIGHLITE
+  pattern = match_pattern2( scene, actor, line )
+  return '' if pattern.nil?
+
+  find_highlite_color( actor, pattern )
 end
 
 # modify line where script changed
@@ -344,6 +370,7 @@ def build_output( actor )
 end
 
 $config = read_yaml( CONFIG_FILE )
+read_colors( COLOR_CONFIG_FILE )
 read_changed
 @wiki_highlite = JSON.parse( File.read( WIKI_ACTORS ) )
 # pp @wiki_highlite
