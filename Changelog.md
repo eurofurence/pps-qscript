@@ -1,4 +1,7 @@
 
+## 2024-09-09
+ * strip spaces from actor files
+
 ## 2024-09-01
  * support extra colors for patterns
  * get ini files from wiki

@@ -102,7 +102,9 @@ end
 # save actor HTML file
 def save_actor( actor )
   # U+2019, 0xe2 0x80 0x99, RIGHT SINGLE QUOTATION MARK
-  filename = "#{ACTORS_DIR}/#{actor.downcase.delete( "'\u2019" )}.html"
+  actor2 = actor.downcase.delete( "'\u2019" )
+  actor2.delete!( ' #' )
+  filename = "#{ACTORS_DIR}/#{actor2}.html"
   @seen_output[ filename ] = true
   file_put_contents( filename, @out )
 end
