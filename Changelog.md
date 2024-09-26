@@ -1,4 +1,7 @@
 
+## 2024-09-26
+ * new config option to filter intro
+
 ## 2024-09-09
  * strip spaces from actor files
 
