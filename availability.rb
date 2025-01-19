@@ -70,9 +70,7 @@ def read_csv( filename )
   list = []
   CSV.foreach( filename, encoding: 'bom|UTF-8', col_sep: ';' ) do |row|
     # match players to the script
-    if @subs.key?( row[0] )
-      row[0] = @subs[ row[0] ]
-    end
+    row[ 0 ] = @subs[ row[ 0 ] ] if @subs.key?( row[ 0 ] )
     list.push( row )
   end
   list
@@ -155,7 +153,7 @@ def columns_and_rows( event )
       next
     end
     if @availability2.key?( name )
-      if !@availability2[ name ].key?( event )
+      unless @availability2[ name ].key?( event )
         list1.push( name )
         add_missing( list1, name )
         # next
@@ -356,7 +354,7 @@ end
 
 @debug = ARGV.include?( 'debug' )
 
-@actors = JSON.parse( File.read( ASSIGNMENT_FILE ))
+@actors = JSON.parse( File.read( ASSIGNMENT_FILE ) )
 # pp @actors
 @people = JSON.parse( File.read( PEOPLE_LIST_FILE ) )
 # pp @people

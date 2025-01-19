@@ -42,7 +42,7 @@ ASSIGNMENT_LIST_FILE = 'assignment-list.csv'.freeze
 PEOPLE_LIST_FILE = 'people.json'.freeze
 # regular expression for matching names
 # U+0430, 0xD0 0xB0, Cyrillic Small Letter A
-MATCH_NAME = "[A-Za-z0-9\u0430_\'-]+".freeze
+MATCH_NAME = "[A-Za-z0-9\u0430_'-]+".freeze
 # regular expression for matching names within a tag
 MATCH_SNAME = '[^<]+'.freeze
 
@@ -330,6 +330,7 @@ end
 #   Timeframe.add_prop( storekey, reportkey, token, list )
 #   Timeframe.add_spoken( name )
 #   Timeframe.list( key )
+# rubocop:disable Metrics/ClassLength
 class Timeframe
   # List of items to monitor per timeframe
   TIMEFRAME_FIELDS = {
@@ -531,6 +532,7 @@ class Timeframe
     timeframes[ @timeframe ][ key ]
   end
 end
+# rubocop:enable Metrics/ClassLength
 
 # === Class Store
 #   Store.new( timeframe )
@@ -558,6 +560,7 @@ end
 #   Store.store_role( name, list )
 #   Store.add_role( name, list )
 #   Store.add_backdrop( position, backdrop )
+# rubocop:disable Metrics/ClassLength
 class Store
   # map items type to location index
   ITEM_TYPE_INDEX = {
@@ -670,6 +673,7 @@ class Store
   end
 
   # check an actor for collisions
+  # rubocop:disable Metrics/PerceivedComplexity
   def check_actor( name )
     return nil unless @items[ 'Actor' ].key?( name )
 
@@ -720,6 +724,7 @@ class Store
     end
     nil
   end
+  # rubocop:enable Metrics/PerceivedComplexity
 
   # check a puppet for collisions
   def check_puppet( role, name )
@@ -916,8 +921,8 @@ class Store
   # save a role with all actors, puppet and clothing
   def store_role( name, list )
     player, hands, voice, puppet, clothing = list
-    voice = voice.nil? ? player : voice
-    hands = hands.nil? ? player : hands
+    voice = player if voice.nil?
+    hands = player if hands.nil?
     add_item(
       'Role', name,
       player: player, hands: hands, voice: voice,
@@ -946,9 +951,9 @@ class Store
     @timeframe.add( 'Role', name )
     player, hands, voice, puppet, clothing = list
     uplayer = add_person( name, 'player', player, 'Actor' )
-    voice = voice.nil? ? uplayer : voice
+    voice = uplayer if voice.nil?
     uvoice = add_voice( name, voice )
-    hands = hands.nil? ? [ uplayer ] : hands
+    hands = [ uplayer ] if hands.nil?
     uhands = add_hands( name, hands )
     upuppet = add_puppet( name, puppet )
     uclothing = add_clothing( name, clothing )
@@ -969,6 +974,7 @@ class Store
     key
   end
 end
+# rubocop:enable Metrics/ClassLength
 
 # === Class Functions
 #   Report.new( store, qscript )
@@ -1030,6 +1036,8 @@ end
 #   Report.list_cast
 #   Report.table_caption( title )
 #   Report.html_table( table, title, tag = '' )
+#   Report.html_table_r_cell( column, first_row )
+#   Report.html_table_r_body( table )
 #   Report.html_table_r( table, title, tag = '', head_row = nil )
 #   Report.html_list( caption, title, hash, seperator = '</td><td>' )
 #   Report.html_list_hash( title, hash, seperator = '</td><td>' )
@@ -1058,6 +1066,7 @@ end
 #   Report.puts_tables
 #   Report.puppet_image( puppet )
 #   Report.save_html( filename )
+# rubocop:disable Metrics/ClassLength
 class Report
   # map item table names to item type
   REPORT_CATALOG = {
@@ -1395,7 +1404,7 @@ class Report
     out = ''
     return out if list.nil?
 
-    list.each do |prop, _count|
+    list.each do |( prop, _count )|
       ref =
         if type.nil?
           "tab#{capitalize( prop )}"
@@ -1559,7 +1568,7 @@ class Report
     Timeframe::TIMEFRAME_FIELDS.each_pair do |key, type|
       prefix = prefix_by_title( key )
       sorted = nat_sort_hash( @store.items[ type ] )
-      sorted.each do |name, _h|
+      sorted.each do |( name, _h )|
         # p h
         count = person_count( type, name )
         case type
@@ -1905,23 +1914,22 @@ class Report
     merge_assignments( cast, actor, action )
   end
 
+  # list cast with roles
   def list_cast
     cast = {}
     @store.items[ 'Role' ].each_pair do |role, h|
       next if role.casecmp( 'none' ).zero?
 
       h[ :list ].each do |entry|
-        if entry.key?( :player )
-          merge_cast( cast, entry[ :player ], role )
-        end
+        merge_cast( cast, entry[ :player ], role ) \
+          if entry.key?( :player )
         if entry.key?( :hands )
           entry[ :hands ].each do |hand|
             merge_cast( cast, hand, role )
           end
         end
-        if entry.key?( :voice )
-          merge_cast( cast, entry[ :voice ], role )
-        end
+        merge_cast( cast, entry[ :voice ], role ) \
+          if entry.key?( :voice )
       end
     end
 
@@ -1961,6 +1969,48 @@ class Report
     html
   end
 
+  # make a cell of the html table
+  def html_table_r_cell( column, first_row )
+    html = ''
+    if column.respond_to?( :key? )
+      html << '<td class="x">'
+      html << html_object_name( column )
+    else
+      case column
+      when nil
+        # nothing
+      when 'x'
+        html << '<td class="x">'
+        html << column.to_s
+      else
+        if first_row
+          html << '<td class="r"><div><div><div>'
+          html << column.to_s
+          html << '</div></div></div>'
+        else
+          html << '<td>'
+          html << column.to_s
+        end
+      end
+    end
+    html
+  end
+
+  # make the body of the html table
+  def html_table_r_body( table )
+    html = ''
+    first_row = true
+    table.each do |row|
+      html << '<tr>'
+      row.each do |column|
+        html << html_table_r_cell( column, first_row )
+      end
+      first_row = false
+      html << "</tr>\n"
+    end
+    html
+  end
+
   def html_table_r( table, title, tag = '', head_row = nil )
     html = table_caption( title )
     html << "\n#{tag}<table>"
@@ -1975,37 +2025,7 @@ class Report
       end
       html << "</tr>\n"
     end
-    first_row = true
-    table.each do |row|
-      html << '<tr>'
-      row.each do |column|
-        if column.respond_to?( :key? )
-          html << '<td class="x">'
-          html << html_object_name( column )
-        else
-          case column
-          when nil
-            html << '<td/>'
-          when 'x'
-            html << '<td class="x">'
-            html << column.to_s
-            html << '</td>'
-          else
-            if first_row
-              html << '<td class="r"><div><div><div>'
-              html << column.to_s
-              html << '</div></div></div>'
-            else
-              html << '<td>'
-              html << column.to_s
-            end
-            html << '</td>'
-          end
-        end
-      end
-      first_row = false
-      html << "</tr>\n"
-    end
+    html << html_table_r_body( table )
     html << "</table><br/>\n"
     html << tag.sub( '<', '</' )
     html
@@ -2234,9 +2254,9 @@ class Report
 
   def puts_builds2_table( title )
     builds = list_builds2
-    builds2 = builds.clone.map(&:clone)
+    builds2 = builds.clone.map( &:clone )
     builds2.each do |row|
-      row[2] = html_escape( row[2] )
+      row[ 2 ] = html_escape( row[ 2 ] )
     end
     @html_report << html_table( builds2, title )
   end
@@ -2276,6 +2296,9 @@ f = actor free<br>
     false
   end
 
+  # collect roles for export
+  # rubocop:disable Metrics/PerceivedComplexity
+  # rubocop:disable Metrics/BlockLength
   def find_export_role( type )
     actions = []
     @store.collection[ 'Role' ].each_pair do |name, entry|
@@ -2325,7 +2348,11 @@ f = actor free<br>
     end
     actions
   end
+  # rubocop:enable Metrics/PerceivedComplexity
+  # rubocop:enable Metrics/BlockLength
 
+  # collapse empty columns and rows
+  # rubocop:disable Metrics/PerceivedComplexity
   def columns_and_rows2( key )
     rows = []
     columns = [ 'Type', 'Name' ]
@@ -2355,6 +2382,7 @@ f = actor free<br>
 
           hash[ 'props_hands' ][ name ].each do |act|
             next if act.casecmp( 'none' ).zero?
+
             rows.push( [ type, name, act ] )
           end
           seen[ name ] = true
@@ -2364,7 +2392,9 @@ f = actor free<br>
     columns.push( 'People' )
     [ [ columns ], rows ]
   end
+  # rubocop:enable Metrics/PerceivedComplexity
 
+  # rubocop:disable Metrics/BlockLength
   def puts_people_export( title, key )
     table, rows = columns_and_rows2( key )
     rows.each do |rowinfo|
@@ -2401,11 +2431,11 @@ f = actor free<br>
     @html_report << html_table_r( table, title )
     table
   end
+  # rubocop:enable Metrics/BlockLength
 
   def export_assignment
-    list = []
-    @assignment_list.each do |row|
-      list << row.map do |e|
+    @assignment_list.map do |row|
+      row.map do |e|
         case e
         when 'x'
           '1'
@@ -2416,7 +2446,6 @@ f = actor free<br>
         end
       end
     end
-    list
   end
 
   def puts_cast_table( title )
@@ -2424,6 +2453,7 @@ f = actor free<br>
     @html_report << html_list_hash( title, cast, ', ' )
   end
 
+  # rubocop:disable Metrics/BlockLength
   def puts_tables
     add_head( 'Tables' )
     tables = make_unsorted( REPORT_TABLES.keys, nil )
@@ -2462,6 +2492,7 @@ f = actor free<br>
       end
     end
   end
+  # rubocop:enable Metrics/BlockLength
 
   def puppet_image( puppet )
     return nil unless $puppet_pool.key?( puppet )
@@ -2478,6 +2509,7 @@ f = actor free<br>
     )
   end
 end
+# rubocop:enable Metrics/ClassLength
 
 # === Class Parser
 #   Parser.new( store, qscript, report )
@@ -2580,6 +2612,7 @@ end
 #   Parser.intro_line( line )
 #   Parser.parse_script_line( line )
 #   Parser.parse_lines( filename, lines, version )
+# rubocop:disable Metrics/ClassLength
 class Parser
   # map simple wiki tag to qscript
   SIMPLE_MAP = {
@@ -2738,10 +2771,9 @@ class Parser
 
   def list_one_person( name )
     @qscript.puts ''
-pp @store.current_roles[ name ]
     @store.current_roles[ name ].each_pair do |key, val|
-pp [ :list_one_person, key, val ]
-      # p [ 'list_one_person', name, key, val ]
+      # pp [ 'list_one_person', name, key, val ]
+      pp [ :list_one_person, name, key, val ]
       if val.respond_to?( :shift )
         next if val.empty?
         next if val.size == 1 && val.first.casecmp( 'none' ).zero?
@@ -3015,7 +3047,7 @@ pp [ :list_one_person, key, val ]
       m.each do |prop|
         handtext = line.scan( /[(]([^)]*)[)]/ )
         hands =
-          if handtext.empty? || hands.size.zero?
+          if handtext.empty?
             [ new_stagehand( prop ) ]
           else
             p [ 'parse_single_prop', handtext ]
@@ -3053,6 +3085,7 @@ pp [ :list_one_person, key, val ]
   end
 
   # Role, Actor, Hands, Voice, Puppet, Costume
+  # rubocop:disable Metrics/PerceivedComplexity
   def parse_table_role( line )
     list2 = line.split( '|' ).map( &:strip )
     list2.map! do |f|
@@ -3110,9 +3143,10 @@ pp [ :list_one_person, key, val ]
       # add_error_note( "Skipping Empty Prerec: #{line}" )
       return
     end
+
     voice = list2[ 2 ]
     voice.sub!( /Voice: */, '' ) unless voice.nil?
-    if voice.nil? or voice == ''
+    if voice.nil? || voice == ''
       add_error_note( "Missing Voice for Prerec: #{line}" )
       return
     end
@@ -3120,6 +3154,7 @@ pp [ :list_one_person, key, val ]
     @store.add_item( 'Role', role, voice: voice )
     @store.add_item( 'Actor', voice, role: role, voice: true )
   end
+  # rubocop:enable Metrics/PerceivedComplexity
 
   def split_dokuwiki_table( line )
     line.split( '|' )[ 1 .. ].map( &:strip )
@@ -3511,9 +3546,8 @@ pp [ :list_one_person, key, val ]
   end
 
   def search_simple_props( line, suffix, tag )
-    props = []
-    suffix_props( line, suffix ).each do |prop|
-      props.push( prop )
+    props = suffix_props( line, suffix ).map do |prop|
+      prop
     end
 
     tagged_props( line, tag ).each do |prop|
@@ -3542,6 +3576,7 @@ pp [ :list_one_person, key, val ]
     @scene_props_names.each_pair do |prop, names|
       # pp [ prop, names.first ]
       next unless untagged.include?( prop )
+
       add_todo( "#{names.first} #{prop}: not tagged in '#{line}'" )
     end
   end
@@ -3617,9 +3652,8 @@ pp [ :list_one_person, key, val ]
     line.scan( /Backdrop_L (.*) Backdrop_M (.*) Backdrop_R (.*)/ ) do |m|
       next if m.empty?
 
-      list = []
-      m.each do |prop|
-        list.push( add_backdrop( name, prop ) )
+      list = m.map do |prop|
+        add_backdrop( name, prop )
       end
       add_backdrop_list( list )
     end
@@ -3672,9 +3706,7 @@ pp [ :list_one_person, key, val ]
           @store.timeframe.add( storekey, text )
         end
         @store.timeframe.add_list( storekey, result_key, '', text )
-        if key == '%ATT%'
-          report_untagged_props( line )
-        end
+        report_untagged_props( line ) if key == '%ATT%'
         return true
       end
     end
@@ -3774,7 +3806,7 @@ pp [ :list_one_person, key, val ]
   def change_role_clothing( role, old_clothing, clothing )
     clothing2 = strip_none( clothing )
     old_clothing2 = strip_none( old_clothing )
-pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
+    pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
     return if old_clothing2 == clothing2
     return if $debug.zero?
 
@@ -3962,7 +3994,7 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
       when /^#{key} /
         line.strip!
         text = line.sub( /^#{key}  */, '' )
-	report_untagged_props( text )
+        report_untagged_props( text )
         parse_action( text, qscript_key, result_key )
         return true
       end
@@ -3987,9 +4019,8 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
     player = @store.last_role( name, 'player' )
     @store.timeframe.add_spoken( 'Actor', player )
     voice = @store.last_role( name, 'voice' )
-    if voice != player && !voice.nil?
-      @store.timeframe.add_spoken( 'Actor', voice )
-    end
+    @store.timeframe.add_spoken( 'Actor', voice ) \
+      if voice != player && !voice.nil?
     puppet = @store.collection[ 'role_puppets' ][ name ]
     @store.timeframe.add_spoken( 'Puppet', puppet )
     if comment.nil?
@@ -4266,9 +4297,9 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
         @qscript.puts_key( 'stagehand', hand, text )
         @report.puts2_key( 'Stage', hand, text )
         add_todo( "%HND% ohne Stagehand: #{text}" )
-        next 
-      end 
-    
+        next
+      end
+
       @store.add_item( 'Actor', hand, prop: kprop, stagehand: true )
       add_todo( @store.check_actor( hand ) )
       collect_handprop( text, nil )
@@ -4365,6 +4396,7 @@ pp [ :strip_none, clothing, clothing2, old_clothing, old_clothing2 ]
     close_scene
   end
 end
+# rubocop:enable Metrics/ClassLength
 
 $config = read_yaml(
   CONFIG_FILE,

@@ -41,7 +41,8 @@ NEWHIGHLITE = ' class="newhighlite"'.freeze
 # css highlite with color
 CHANGED = ' class="changed"'.freeze
 
-$debug = 0
+$debug_name = ARGV.first
+
 @ignore_changed = true
 
 # read wiki paths
@@ -140,25 +141,13 @@ end
 
 # show some debug info
 def debug( scene, actor, pattern, line )
-  return if $debug.zero?
-  return unless actor == 'Eisfuchs'
+  return unless actor == $debug_name
 
   p [ scene, actor, pattern ]
   p line
   puts
-end
-
-# match the patterns for an actor anywhere in the line
-def match_pattern( scene, actor, line )
-  return false unless @wiki_highlite[ scene ].key?( actor )
-
-  @wiki_highlite[ scene ][ actor ].each do |pattern|
-    next unless /[^a-z0-9]#{pattern}[^a-z0-9]/i =~ line
-
-    debug( scene, actor, pattern, line )
-    return true
-  end
-  false
+  # puts caller
+  # puts
 end
 
 # match the patterns for an actor in dialog lines
@@ -177,6 +166,7 @@ def match_list( scene, actor, pattern, line2 )
 end
 
 # search wiki text for actor in the line
+# rubocop:disable Metrics/PerceivedComplexity,Metrics/BlockLength
 def match_pattern2( scene, actor, line )
   return nil unless @wiki_highlite[ scene ].key?( actor )
 
@@ -215,9 +205,9 @@ def match_pattern2( scene, actor, line )
       next
     when /%ACT%/
       line2 = line.sub( /\n*.*%ACT%[^>]*> */, '' )
-      next unless match_list( scene, actor, pattern, line2 )
+      return pattern if match_list( scene, actor, pattern, line2 )
 
-      return pattern
+      next
     end
     line2 = line.sub( /^\n/, '' )
     next if /^###/ =~ line2
@@ -226,6 +216,7 @@ def match_pattern2( scene, actor, line )
   end
   nil
 end
+# rubocop:enable Metrics/PerceivedComplexity,Metrics/BlockLength
 
 # find out the color for highlite
 def find_highlite_color( actor, pattern )
@@ -262,7 +253,9 @@ def highlite_patterns( scene, actor, line )
       add_line( line )
       return
     end
+    pp [ changed, highlite, scene, actor, line ] if actor == $debug_name
     add_tag_line( line, "<p#{highlite}>" )
+    pp @out.split( "\n" )[ -4 .. ] if actor == $debug_name
     return
   end
   if highlite == ''
@@ -322,6 +315,24 @@ def read_changed
   end
 end
 
+# generate HTML output for line in the scene
+def build_output_line( scene, actor, line, version )
+  case line
+  when /<div class="level1">/
+    add_line( line )
+    add_line( "#{version}</p>" )
+    return
+  when /table/
+    table_line( scene, actor, line )
+    return
+  when /%(AMB|LIG|MIX|MUS|PRE|VID)%/
+    add_line( line )
+    return
+  end
+
+  highlite_patterns( scene, actor, line )
+end
+
 # generate HTML output for an actor
 def build_output( actor )
   scene = nil
@@ -356,20 +367,7 @@ def build_output( actor )
       exit 1
     end
 
-    case line
-    when /<div class="level1">/
-      add_line( line )
-      add_line( "#{version}</p>" )
-      next
-    when /table/
-      table_line( scene, actor, line )
-      next
-    when /%(AMB|LIG|MIX|MUS|PRE|VID)%/
-      add_line( line )
-      next
-    end
-
-    highlite_patterns( scene, actor, line )
+    build_output_line( scene, actor, line, version )
   end
   save_actor( actor )
 end
