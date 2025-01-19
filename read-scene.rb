@@ -1978,7 +1978,7 @@ class Report
     else
       case column
       when nil
-        # nothing
+        return '<td/>'
       when 'x'
         html << '<td class="x">'
         html << column.to_s
@@ -1993,6 +1993,7 @@ class Report
         end
       end
     end
+      html << '</td>'
     html
   end
 
