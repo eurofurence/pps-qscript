@@ -87,7 +87,7 @@ index.wiki:
 	./fetch-wiki.rb
 
 tidy.html:	out.html
-	-tidy4 -wrap 5000 out.html > tidy.html
+	-tidy4 -wrap 5000 out.html > tidy.html 2>tidy.log
 
 do::
 	diff -bu OLD/ . | grep -v '^Only in' | less

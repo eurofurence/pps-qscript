@@ -5,6 +5,9 @@
 ## 2025-01-28
  * add target for switching to a new show
 
+## 2025-01-19
+ * cleanup html to follow current standard
+
 ## 2024-09-26
  * new config option to filter intro
 

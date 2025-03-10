@@ -578,9 +578,9 @@ class Store
     'Costume' => 11,
     'PersonalProp' => 12,
     'HandProp' => 13,
-    'TechProp' => 13,
-    'SpecialEffect' => 14,
-    'Todo' => 15
+    'TechProp' => 14,
+    'SpecialEffect' => 15,
+    'Todo' => 16
   }.freeze
   # list we will collect over all scenes
   COLLECTION_FIELDS = [
@@ -988,6 +988,7 @@ end
 #   Report.html_object_ref( name )
 #   Report.to_html( ref, name )
 #   Report.html_object_name( name )
+#   Report.uniq_location( number )
 #   Report.html_p( arr )
 #   Report.puts2_key( key, name, text = nil )
 #   Report.puts2_key_token( key, token, name, text = nil )
@@ -1172,10 +1173,11 @@ class Report
       "<body><a href=\"#top\">^&nbsp;</a> <u>Table of contents</u>\n"
     @html_head << '<ul>'
     @counters = {}
-    @html_script = "</ul><br/>\n<u id=\"script\">Script</u>\n"
+    @html_script = "</ul><br>\n<u id=\"script\">Script</u>\n"
     @html_script << '<ul>'
-    @html_report = "</ul><br/>\n"
+    @html_report = "</ul><br>\n"
     @html_head << html_li_item( 'Script' )
+    @seen_location = {}
   end
 
   # add a line to the report
@@ -1256,9 +1258,15 @@ class Report
     html_escape( name )
   end
 
+  def uniq_location( number )
+    @seen_location[ number ] = 1 unless @seen_location.key?( number )
+    @seen_location[ number ] += 1
+    "loc#{number}_#{@seen_location[ number ]}"
+  end
+
   # print a html line
   def html_p( arr )
-    loc = "loc#{@qscript.lines}_2"
+    loc = uniq_location( @qscript.lines )
     key = arr.shift
     text = "&nbsp;#{key}"
     arr.each do |item|
@@ -1364,7 +1372,7 @@ class Report
   # add a list entry to html_script and html_report
   def add_script( item )
     @html_script << html_li_item( item )
-    @html_report << "#{html_u_item( item )}<br/>\n"
+    @html_report << "#{html_u_item( item )}<br>\n"
   end
 
   # list titles of timeframes and quote them
@@ -1380,7 +1388,7 @@ class Report
       count += 1
       @html_report << "#{html_li_ref_item( ref, text )}\n"
     end
-    @html_report << "</ul><br/>\n"
+    @html_report << "</ul><br>\n"
   end
 
   # list prop names and quote them
@@ -1431,7 +1439,7 @@ class Report
 
   # add the catalog to the report
   def catalog
-    @html_report << "<br/>\n"
+    @html_report << "<br>\n"
     add_head( 'Catalog' )
     count = 0
     @html_report << '<ul>'
@@ -1439,7 +1447,7 @@ class Report
       @html_report << html_li_ref_item( "catalog#{count}", key )
       count += 1
     end
-    @html_report << "</ul><br/>\n"
+    @html_report << "</ul><br>\n"
 
     count = 0
     Timeframe::TIMEFRAME_FIELDS.each_pair do |key, type|
@@ -1447,7 +1455,7 @@ class Report
         "#{html_u_ref_item( "catalog#{count}", "Catalog: #{key}" )}\n<ul>"
       count += 1
       list( @store.items[ type ], type )
-      @html_report << "</ul><br/>\n"
+      @html_report << "</ul><br>\n"
     end
   end
 
@@ -1516,7 +1524,7 @@ class Report
     last_scene = nil
     @store.timeframe.timeframes_lines[ type ][ name ].each do |h|
       if last_scene != h[ :scene ]
-        html_list << "<br/>\n" unless last_scene.nil?
+        html_list << "<br>\n" unless last_scene.nil?
         text = timeframe_list_spoken( type, name, h[ :scene ] )
         unless text.nil?
           count = @store.timeframe.timeframes[ h[ :scene ] ][ :number ]
@@ -1603,7 +1611,7 @@ class Report
           @store.timeframe.timeframes[ scene ][ type ], prefix, type
         )
       end
-      @html_report << "</ul><br/>\n"
+      @html_report << "</ul><br>\n"
     end
   end
 
@@ -1965,7 +1973,7 @@ class Report
       end
       html << "</tr>\n"
     end
-    html << "</table><br/>\n"
+    html << "</table><br>\n"
     html
   end
 
@@ -1978,7 +1986,7 @@ class Report
     else
       case column
       when nil
-        return '<td/>'
+        html << '<td>'
       when 'x'
         html << '<td class="x">'
         html << column.to_s
@@ -1993,7 +2001,7 @@ class Report
         end
       end
     end
-      html << '</td>'
+    html << '</td>'
     html
   end
 
@@ -2027,7 +2035,7 @@ class Report
       html << "</tr>\n"
     end
     html << html_table_r_body( table )
-    html << "</table><br/>\n"
+    html << "</table><br>\n"
     html << tag.sub( '<', '</' )
     html
   end
@@ -2056,7 +2064,7 @@ class Report
         html << "</td></tr>\n"
       end
     end
-    html << "</table><br/>\n"
+    html << "</table><br>\n"
     html
   end
 
@@ -2077,7 +2085,7 @@ class Report
       html << h2.map { |text| html_object_name( text ) }.join( seperator )
       html << "</td></tr>\n"
     end
-    html << "</table><br/>\n"
+    html << "</table><br>\n"
     html
   end
 
@@ -2264,7 +2272,7 @@ class Report
 
   def puts_hands_table( title )
     @html_report << table_caption( title )
-    @html_report << "<br/>\n"
+    @html_report << "<br>\n"
     hprops = list_hand_props
     hprops.each_pair do |key, h|
       @html_report << html_table( h, "Hands #{key}" )
@@ -2461,7 +2469,7 @@ f = actor free<br>
     @html_head << tables
     @html_report << '<ul>'
     @html_report << tables
-    @html_report << "</ul><br/>\n"
+    @html_report << "</ul><br>\n"
     REPORT_TABLES.each_pair do |title, type|
       case title
       when 'Backdrops'
@@ -2500,7 +2508,7 @@ f = actor free<br>
     return nil if $puppet_pool[ puppet ].nil?
     return nil if $puppet_pool[ puppet ] == ''
 
-    "<img #{$puppet_pool[ puppet ]}/>".gsub( '&', '&amp;' )
+    "<img #{$puppet_pool[ puppet ]}>".gsub( '&', '&amp;' )
   end
 
   def save_html( filename, extra = '' )
