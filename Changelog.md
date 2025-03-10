@@ -1,4 +1,7 @@
 
+## 2025-03-10
+ * allow more UTF-8 characters in names
+
 ## 2025-01-28
  * add target for switching to a new show
 

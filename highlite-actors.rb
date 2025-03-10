@@ -32,7 +32,7 @@ ACTORS_PDF_INDEX = 'actors.wiki'.freeze
 ACTORS_HTML_INDEX = 'actors-html.wiki'.freeze
 # regular expression for matching names
 # U+0430, 0xD0 0xB0, Cyrillic Small Letter A
-MATCH_NAME = "[A-Za-z0-9\u0430_'-]+".freeze
+MATCH_NAME = "[A-Za-z0-9éå\u0430_'-]+".freeze
 # css highlite with color
 # HIGHLITE = ' style="background-color:#FFFF00;"'.freeze
 HIGHLITE = ' class="highlite"'.freeze
