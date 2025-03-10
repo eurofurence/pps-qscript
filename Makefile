@@ -1,8 +1,8 @@
 # Makefile
 
 DDATE!=		date +%Y-%m-%d
-QSPATH!=	grep qspath: wiki-config.yml | cut -d '"' -f2
-FILTER!=	grep sources: wiki-config.yml | cut -d '"' -f2
+QSPATH!=	grep ^qspath: wiki-config.yml | cut -d '"' -f2
+FILTER!=	grep ^sources: wiki-config.yml | cut -d '"' -f2
 SRC!=		ls *.wiki | grep -E '${FILTER}'
 ACTORS_HTML!=	ls actors/*.html
 
@@ -83,6 +83,9 @@ puppet_pool.csv:	puppet_pool.rb puppet_pool.wiki media/smileys.txt
 all.html:	${SRC} UPLOAD/all.wiki
 	./fetch-wiki.rb "${QSPATH}:all.html"
 
+index.wiki:
+	./fetch-wiki.rb
+
 tidy.html:	out.html
 	-tidy4 -wrap 5000 out.html > tidy.html
 
@@ -115,5 +118,18 @@ dump:
 
 save::
 	rsync -a OLD/ all.html all.html.orig HISTORY/${DDATE}/
+
+clean:
+	touch hold-actors.txt hold.txt
+	rm -vf ${SRC} index.wiki all.wiki all.html.orig.*
+	rm -vf availability.csv availability.debug availability.*.json \
+		availability.html availability.txt
+	rm -vf actors/UPLOAD/*.* UPLOAD/*.*
+	touch 00_dummy.wiki
+	cp header.wiki.sample header.wiki
+	cp roles.wiki.sample roles.wiki
+	cp subs.wiki.sample subs.wiki
+	# ./upload-wiki.rb header.wiki subs.wiki roles.wiki
+	# qsript:index.wiki copy?
 
 # eof
