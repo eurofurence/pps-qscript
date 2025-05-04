@@ -45,6 +45,8 @@ PEOPLE_LIST_FILE = 'people.json'.freeze
 MATCH_NAME = "[A-Za-z0-9éå\u0430_'-]+".freeze
 # regular expression for matching names within a tag
 MATCH_SNAME = '[^<]+'.freeze
+# Byte Order Mark UTF-8
+BOM = "\xEF\xBB\xBF".freeze
 
 $nat_sort = true
 $compat = false
@@ -4456,12 +4458,14 @@ file_put_contents( ASSIGNMENT_FILE,
                    JSON.pretty_generate( parser.store.timeframe.assignment ) )
 
 CSV.open( TODO_LIST_FILE, 'wb', col_sep: ';' ) do |csv|
+  csv.to_io.write( BOM )
   parser.report.todo_list.each do |row|
     csv << row
   end
 end
 
 CSV.open( ASSIGNMENT_LIST_FILE, 'wb', col_sep: ';' ) do |csv|
+  csv.to_io.write( BOM )
   parser.report.export_assignment.each do |row|
     csv << row
   end
