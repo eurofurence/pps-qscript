@@ -3,7 +3,7 @@
 # = highlite-actors.rb
 #
 # Author::    Dirk Meyer
-# Copyright:: Copyright (c) 2020-2023 Dirk Meyer
+# Copyright:: Copyright (c) 2020-2025 Dirk Meyer
 # License::   Distributes under the same terms as Ruby
 #
 

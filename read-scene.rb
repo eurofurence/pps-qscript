@@ -3,7 +3,7 @@
 # = read-scene.rb
 #
 # Author::    Dirk Meyer
-# Copyright:: Copyright (c) 2018-2023 Dirk Meyer
+# Copyright:: Copyright (c) 2018-2025 Dirk Meyer
 # License::   Distributes under the same terms as Ruby
 #
 

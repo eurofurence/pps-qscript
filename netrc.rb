@@ -3,7 +3,7 @@
 # = netrc.rb
 #
 # Author::    Dirk Meyer
-# Copyright:: Copyright (c) 2018-2021 Dirk Meyer
+# Copyright:: Copyright (c) 2018-2025 Dirk Meyer
 # License::   Distributes under the same terms as Ruby
 #
 # == module NetRc
