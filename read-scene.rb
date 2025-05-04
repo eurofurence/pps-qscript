@@ -2416,10 +2416,8 @@ f = actor free<br>
   def puts_people_export( title, key )
     table, rows = columns_and_rows2( key )
     rows.each do |rowinfo|
-      type = rowinfo[ 0 ]
-      row = [ type ]
-      action = rowinfo[ 1 ]
-      row.push( action )
+      type, action, rowhand = rowinfo
+      row = [ type, action ]
       @store.timeframe.timeframes.each_pair do |_scene, hash|
         next unless hash.key?( key )
 
@@ -2440,9 +2438,14 @@ f = actor free<br>
           row.push( nil )
           next
         end
+        unless hash[ 'Actor' ].include?( rowhand )
+          warn "Actor: #{rowhand} not found in #{_scene}\n"
+          row.push( nil )
+          next
+        end
         row.push( 'x' )
       end
-      row.push( rowinfo[ 2 ] )
+      row.push( rowhand )
       table.push( row )
     end
     @assignment_list = table

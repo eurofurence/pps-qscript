@@ -4,6 +4,7 @@
  * allow '. ' in prop names
  * add extra BOM to some CSV output files
  * migrate "puppet_pool.csv" to "puppet_pool.json"
+ * track mutiple hands in "assignment_list.csv"
 
 ## 2025-03-10
  * allow more UTF-8 characters in names
