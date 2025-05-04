@@ -3,6 +3,7 @@
  * skip hands 'None' only for the current scene
  * allow '. ' in prop names
  * add extra BOM to some CSV output files
+ * migrate "puppet_pool.csv" to "puppet_pool.json"
 
 ## 2025-03-10
  * allow more UTF-8 characters in names

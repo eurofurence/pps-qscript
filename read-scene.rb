@@ -21,7 +21,7 @@ ROLES_CONFIG_FILE = 'roles.wiki'.freeze
 # config file for patterns to replace
 SUBS_CONFIG_FILE = 'subs.wiki'.freeze
 # list of puppets and image html code
-PUPPET_POOL_FILE = 'puppet_pool.csv'.freeze
+PUPPET_POOL_FILE = 'puppet_pool.json'.freeze
 # general header for html output files
 HTML_HEADER_FILE = 'header.html'.freeze
 
@@ -179,16 +179,24 @@ def read_subs( filename )
   end
 end
 
+# first picture of puppet
+def first_picture( entry )
+  return nil if entry[ 'Pictures' ].nil?
+
+  entry[ 'Pictures' ].first
+end
+
 # read puppet data from given file
 def read_puppet( filename )
   $puppet_pool = {}
   $puppet_builders = {}
-  File.read( filename ).split( "\n" ).each do |line|
-    next if /^#/ =~ line
-
-    name, builder, image = line.split( ';', 3 )
-    $puppet_pool[ name ] = image
-    $puppet_builders[ name ] = builder
+  JSON.parse( File.read( filename ) ).each do |entry|
+    names = entry[ 'Internal name' ]
+    names.concat( entry[ 'Previous roles' ] )
+    names.each do |name|
+      $puppet_pool[ name ] = first_picture( entry )
+      $puppet_builders[ name ] = entry[ 'Builder' ]
+    end
   end
 end
 
@@ -1945,9 +1953,8 @@ class Report
 
     @store.items[ 'Puppet' ].each_pair do |puppet, _h|
       next unless $puppet_builders.key?( puppet )
-
-      builder = $puppet_builders[ puppet ]
-      builder.split( '/' ).each do |builder2|
+pp puppet
+      $puppet_builders[ puppet ].each do |builder2|
         merge_merge_plain( cast, builder2.strip, 'Puppet Builders' )
       end
     end

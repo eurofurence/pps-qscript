@@ -12,11 +12,12 @@ do
 	fetch -m -o "media/${file}" "${url}"
 done
 
-grep "[.]jpe*g" puppet_pool.csv |
-sed -e 's|.*team:pps:puppet_pictures:||' -e 's|".*||' |
+grep 'team:pps:puppet_pictures' puppet_pool.json |
+sed -e 's|.*team:pps:puppet_pictures:||' -e 's|\\".*||' |
 sort -u |
 while read jpg
 do
+	echo "${jpg}"
 	if test -e "media/${jpg}"
 	then
 		continue

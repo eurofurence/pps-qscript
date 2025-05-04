@@ -12,7 +12,7 @@ ACTORS_LIST=	${ACTORS_HTML:S/.html//g}
 
 all:	numbered-qscript.txt out.txt \
 	all.wiki plain.wiki clothes.pdf all.pdf \
-	puppet_pool.csv tidy.html \
+	puppet_pool.json tidy.html \
 	actors/run.log actors
 
 .if exists(media/availability.csv)
@@ -23,7 +23,7 @@ all:	availability.txt
 all:	test.txt test.wdiff
 .endif
 
-pre:	all.wiki puppet_pool.csv
+pre:	all.wiki puppet_pool.json
 
 numbered-qscript.txt:	qscript.txt
 	cat -n qscript.txt > numbered-qscript.txt
@@ -76,7 +76,7 @@ all.wiki:	makeall.sh header.wiki index.wiki
 plain.wiki:	Makefile all.wiki
 	sed -e '/^@media (prefers-color-scheme/,/^}/d' all.wiki > plain.wiki
 
-puppet_pool.csv:	puppet_pool.rb puppet_pool.wiki media/smileys.txt
+puppet_pool.json:	puppet_pool.rb puppet_pool.wiki media/smileys.txt
 	./puppet_pool.rb
 	./get-media.sh
 

@@ -3,16 +3,18 @@
 # = puppet_pool.rb
 #
 # Author::    Dirk Meyer
-# Copyright:: Copyright (c) 2019-2023 Dirk Meyer
+# Copyright:: Copyright (c) 2019-2025 Dirk Meyer
 # License::   Distributes under the same terms as Ruby
 #
+
+require 'json'
 
 $: << '.'
 
 # input filename with dokuwiki syntax
 INPUT_FILE = 'puppet_pool.wiki'.freeze
-# output filename in CSV format
-OUTPUT_FILE = 'puppet_pool.csv'.freeze
+# output filename in JSON format
+OUTPUT_FILE = 'puppet_pool.json'.freeze
 
 # dokuwiki syntax:
 # {{:team:pps:puppet_pictures:bobcat.jpg?100}}
@@ -37,12 +39,9 @@ OUTPUT_FILE = 'puppet_pool.csv'.freeze
 #   &amp;media=team:pps:puppet_pictures:aurelia_01_closeup_head.jpg" \
 #   class="media" title="ASCII" alt="ASCII" width="90" height="81" />
 
-# get fist picture from dokuwiki row
-def get_first_picture( pictures )
-  picture = pictures.split( ':team:pps:puppet_pictures:' )[ 1 ]
-  return nil if picture.nil?
-
-  image, size = picture.sub( /}}.*/, '' ).split( '?', 2 )
+# parse picture entry and return url
+def parse_picture( picture )
+  image, size = picture.sub( '{{:', '' ).sub( '}}', '' ).split( '?', 2 )
   size3 =
     case size
     when /x/
@@ -51,8 +50,18 @@ def get_first_picture( pictures )
     else
       " width=\"#{size}\""
     end
-  url = "/lib/exe/fetch.php?cache=&media=team:pps:puppet_pictures:#{image}"
+  url = "/lib/exe/fetch.php?cache=&media=#{image}"
   "src=\"#{url}\" class=\"media\" title=\"#{image}\" alt=\"#{image}\"#{size3}"
+end
+
+# parse pictures from dokuwiki row
+def parse_pictures( pictures )
+  result = []
+  pictures.split( '}}{{' ).each do |picture|
+    image = parse_picture( picture )
+    result.push( image )
+  end
+  result
 end
 
 # serch for all alias names of a puppet
@@ -61,12 +70,36 @@ def find_alias( text )
   text.gsub( /EF[0-9][0-9]*: */, '' ).gsub( '\\\\', ',' ).split( ', ' )
 end
 
+# parse a row from dokuwiki table
+def parse_row( fields, list )
+  h = {}
+  list.each_index do |index|
+    case fields[ index ]
+    when nil, ''
+      next
+    when 'Pictures'
+      next if list[ index ] == ''
+      next if list[ index ] == '…'
+
+      h[ fields[ index ] ] = parse_pictures( list[ index ] )
+    when 'Previous roles'
+      h[ fields[ index ] ] = find_alias( list[ index ] )
+    when 'Internal name', 'Builder' # list
+      return nil if list[ index ] == '' # empty row
+
+      h[ fields[ index ] ] = list[ index ].split( /[,\/]/ ).map( &:strip )
+    else
+      h[ fields[ index ] ] = list[ index ]
+    end
+  end
+  h
+end
+
 # search for all alias names of a puppet
 def read_pool( filename )
-  result = [ [ 'Internal name', 'Builder', 'Picture' ] ]
+  result = []
   p filename
   fields = []
-  seen = {}
   File.read( filename ).split( "\n" ).each do |line|
     case line[ 0 .. 0 ]
     when '^' # head
@@ -78,52 +111,16 @@ def read_pool( filename )
       next
     end
     # pp list
-    h = {}
-    list.each_index do |index|
-      h[ fields[ index ] ] = list[ index ]
-    end
+    h = parse_row( fields, list )
     # pp h
-    # p [ h[ 'Internal name' ], h[ 'Pictures' ] ]
-    # p [ h[ 'Internal name' ], get_first_picture( h[ 'Pictures' ] ) ]
-    iname = h[ 'Internal name' ]
-    builder = h[ 'Builder' ]
-    next if iname.nil?
-    next if seen.key?( iname )
-
-    names = iname.split( ', ' )
-    names.concat( find_alias( h[ 'Previous roles' ] ) )
-    names.each do |name|
-      next if seen.key?( name )
-
-      seen[ name ] = true
-      result.push( [ name, builder, get_first_picture( h[ 'Pictures' ] ) ] )
-    end
+    result.push( h ) unless h.nil?
   end
   # pp result
   result
 end
 
-# put buffer to file
-def file_put_contents( filename, line, mode = 'w+' )
-  File.open( filename, mode ) do |f|
-    f.write( line )
-    f.close
-  end
-end
-
-# convert list to CSV text
-def list_to_text( list )
-  result = ''
-  list.each do |row|
-    result << row.join( ';' )
-    result << "\n"
-  end
-  result
-end
-
 list = read_pool( INPUT_FILE )
-buffer = list_to_text( list )
-file_put_contents( OUTPUT_FILE, buffer )
+File.write( OUTPUT_FILE, JSON.pretty_generate( list ) )
 
 exit 0
 # eof
