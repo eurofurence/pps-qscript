@@ -1,4 +1,8 @@
 
+## 2025-05-04
+ * skip hands 'None' only for the current scene
+ * allow '. ' in prop names
+
 ## 2025-03-10
  * allow more UTF-8 characters in names
 

@@ -2393,8 +2393,8 @@ f = actor free<br>
             next if act.casecmp( 'none' ).zero?
 
             rows.push( [ type, name, act ] )
+            seen[ name ] = true
           end
-          seen[ name ] = true
         end
       end
     end
@@ -2448,7 +2448,7 @@ f = actor free<br>
         case e
         when 'x'
           '1'
-        when /[.]/
+        when /[.][a-z]/
           e.split( '.' ).first
         else
           e
