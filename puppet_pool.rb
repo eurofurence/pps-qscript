@@ -70,6 +70,13 @@ def find_alias( text )
   text.gsub( /EF[0-9][0-9]*: */, '' ).gsub( '\\\\', ',' ).split( ', ' )
 end
 
+# parse a list of names
+def find_list( text )
+  return [] if text == '' # empty
+
+  text.split( /[,\/]/ ).map( &:strip )
+end
+
 # parse a row from dokuwiki table
 def parse_row( fields, list )
   h = {}
@@ -84,10 +91,14 @@ def parse_row( fields, list )
       h[ fields[ index ] ] = parse_pictures( list[ index ] )
     when 'Previous roles'
       h[ fields[ index ] ] = find_alias( list[ index ] )
-    when 'Internal name', 'Builder' # list
-      return nil if list[ index ] == '' # empty row
+    when 'Internal name' # list
+      found = find_list( list[ index ] )
+      return nil if found.empty? # empty row
 
       h[ fields[ index ] ] = list[ index ].split( /[,\/]/ ).map( &:strip )
+      h[ fields[ index ] ] = found
+    when 'Builder' # list
+      h[ fields[ index ] ] = find_list( list[ index ] )
     else
       h[ fields[ index ] ] = list[ index ]
     end
@@ -99,6 +110,7 @@ end
 def read_pool( filename )
   result = []
   p filename
+  count = 0
   fields = []
   File.read( filename ).split( "\n" ).each do |line|
     case line[ 0 .. 0 ]
@@ -107,6 +119,7 @@ def read_pool( filename )
       next
     when '|' # data
       list = line.split( '|' ).map( &:strip )
+      count += 1
     else
       next
     end
@@ -115,10 +128,14 @@ def read_pool( filename )
     # pp h
     result.push( h ) unless h.nil?
   end
-  # pp result
+  if @debug
+    pp result
+    pp [ count, result.size ]
+  end
   result
 end
 
+@debug = ARGV.include?( 'debug' )
 list = read_pool( INPUT_FILE )
 File.write( OUTPUT_FILE, JSON.pretty_generate( list ) )
 
