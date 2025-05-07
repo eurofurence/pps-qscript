@@ -1,6 +1,7 @@
 
 ## 2025-05-07
  * allow puppets without a builder
+ * fix alt tag on puppet images
 
 ## 2025-05-04
  * skip hands 'None' only for the current scene

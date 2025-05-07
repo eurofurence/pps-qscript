@@ -50,8 +50,9 @@ def parse_picture( picture )
     else
       " width=\"#{size}\""
     end
+  basename = image.split( ':' ).last
   url = "/lib/exe/fetch.php?cache=&media=#{image}"
-  "src=\"#{url}\" class=\"media\" title=\"#{image}\" alt=\"#{image}\"#{size3}"
+  "src=\"#{url}\" class=\"media\" title=\"#{image}\" alt=\"#{basename}\"#{size3}"
 end
 
 # parse pictures from dokuwiki row
