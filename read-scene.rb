@@ -3974,6 +3974,7 @@ class Parser
     case name.downcase
     when 'they', 'and', 'with'
       add_error_note( "bad Role: '#{name}', #{text}" )
+      return
     when 'everyone', 'everybody'
       unless @roles_config.roles_map.key?( name )
         add_error_note( "bad Role: '#{name}', #{text}" )
