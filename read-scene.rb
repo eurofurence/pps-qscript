@@ -3969,6 +3969,21 @@ class Parser
     end
   end
 
+  # add role after sanity check
+  def add_role_name( list, name, text )
+    case name.downcase
+    when 'they', 'and', 'with'
+      add_error_note( "bad Role: '#{name}', #{text}" )
+    when 'everyone', 'everybody'
+      unless @roles_config.roles_map.key?( name )
+        add_error_note( "bad Role: '#{name}', #{text}" )
+        all = @store.timeframe.timeframes[ @store.timeframe.timeframe ][ 'Role' ]
+        @roles_config.add_roles( name, all )
+      end
+    end
+    list.push( name )
+  end
+
   def parse_role_name( text )
     rest = text.gsub( / *\[[^\]]*\]/, '' )
     rest.gsub!( /^The /, '' )
@@ -3977,15 +3992,15 @@ class Parser
     while /^#{MATCH_NAME}( and |, *)/ =~ rest
       name, rest = rest.split( / and |, */, 2 )
       name.sub!( /'s$/, '' )
-      list.push( name )
+      add_role_name( list, name, text )
     end
     name, rest = rest.split( ' ', 2 )
     case name
     when /^#{MATCH_NAME}'s:*$/
       name.sub!( /'s$/, '' )
-      list.push( name.sub( ':', '' ) )
+      add_role_name( list, name.sub( ':', '' ), text )
     when /^#{MATCH_NAME}:*$/
-      list.push( name.sub( ':', '' ) )
+      add_role_name( list, name.sub( ':', '' ), text )
     else
       add_error_note( "Error in Role: '#{name}', #{text}" )
     end

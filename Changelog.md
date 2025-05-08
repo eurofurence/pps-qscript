@@ -1,4 +1,7 @@
 
+## 2025-05-08
+ * detect bad role names earlier
+
 ## 2025-05-07
  * allow puppets without a builder
  * fix alt tag on puppet images
