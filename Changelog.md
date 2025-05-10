@@ -3,6 +3,7 @@
  * preserve order of scenes from index.wiki
  * add nobody to bad roles
  * warn on spoken lines without voice
+ * detect bad role names on ACT too
 
 ## 2025-05-08
  * detect bad role names earlier

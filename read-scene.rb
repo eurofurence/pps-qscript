@@ -2604,12 +2604,14 @@ end
 #   Parser.change_role_clothing( role, old_clothing, clothing )
 #   Parser.old_role( role, list )
 #   Parser.merge_role( role, list )
+#   Parser.bad_role( name )
 #   Parser.unknown_person( name )
 #   Parser.parse_position( name, text )
 #   Parser.print_role( name, qscript_key, result_key, text )
 #   Parser.print_roles( name, qscript_key, result_key, text )
 #   Parser.print_roles_list( list, qscript_key, result_key, text )
 #   Parser.parse_group( line, qscript_key, result_key )
+#   Parser.add_role_name( list, name, text )
 #   Parser.parse_role_name( text )
 #   Parser.parse_action( text, qscript_key, result_key )
 #   Parser.print_role_line( line )
@@ -3869,9 +3871,25 @@ class Parser
     new_list
   end
 
+  # sanity check
+  def bad_role( name )
+    case name.downcase
+    when 'they', 'and', 'with', 'nobody'
+      return 1
+    when 'everyone', 'everybody'
+      return 2
+    end
+    0
+  end
+
   def unknown_person( name )
     # return if @store.collection[ 'person' ].key?( name )
-    return if @store.timeframe.seen?( 'Role', name )
+    return false if @store.timeframe.seen?( 'Role', name )
+
+    case bad_role( name )
+    when 1, 2
+      return true
+    end
 
     p [ 'unknown_person', name ]
     if @section != 'Puppets:'
@@ -3893,6 +3911,7 @@ class Parser
     @store.add_role( name, list )
     check_role_list( name, list )
     list_one_person( name )
+    false
   end
 
   def parse_position( _name, text )
@@ -3903,7 +3922,11 @@ class Parser
   end
 
   def print_role( name, qscript_key, result_key, text )
-    unknown_person( name )
+    if unknown_person( name )
+      add_error_note( "bad Role: '#{name}': '#{text}'" )
+      return
+    end
+
     stagehands = collect_handprop( text, name )
     add_stagehands( stagehands, text )
     @qscript.puts_key( qscript_key, name, text )
@@ -3970,11 +3993,11 @@ class Parser
 
   # add role after sanity check
   def add_role_name( list, name, text )
-    case name.downcase
-    when 'they', 'and', 'with', 'nobody'
+    case bad_role( name )
+    when 1
       add_error_note( "bad Role: '#{name}', #{text}" )
       return
-    when 'everyone', 'everybody'
+    when 2
       unless @roles_config.roles_map.key?( name )
         add_error_note( "bad Role: '#{name}', #{text}" )
         all = @store.timeframe.timeframes[ @store.timeframe.timeframe ][ 'Role' ]
@@ -4018,8 +4041,8 @@ class Parser
     when /=/ # Group definition
       parse_group( text, qscript_key, result_key )
     else
-      list, text = parse_role_name( text )
-      print_roles_list( list, qscript_key, result_key, text )
+      list, text2 = parse_role_name( text )
+      print_roles_list( list, qscript_key, result_key, text2 )
     end
   end
 
@@ -4039,7 +4062,11 @@ class Parser
   end
 
   def print_spoken( name, comment, text )
-    unknown_person( name )
+    if unknown_person( name )
+      add_error_note( "bad Role: '#{name}': '#{text}'" )
+      return
+    end
+
     stagehands = collect_handprop( comment, name )
     stagehands.concat( collect_handprop( text, name ) )
     add_stagehands( stagehands, text )
