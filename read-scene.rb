@@ -4057,6 +4057,8 @@ class Parser
     voice = @store.last_role( name, 'voice' )
     @store.timeframe.add_spoken( 'Actor', voice ) \
       if voice != player && !voice.nil?
+    add_todo( "spoken line without voice: #{name}: '#{text}'" ) \
+      if voice == 'None' || voice.nil?
     puppet = @store.collection[ 'role_puppets' ][ name ]
     @store.timeframe.add_spoken( 'Puppet', puppet )
     if comment.nil?
