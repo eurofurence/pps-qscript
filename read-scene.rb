@@ -3971,7 +3971,7 @@ class Parser
   # add role after sanity check
   def add_role_name( list, name, text )
     case name.downcase
-    when 'they', 'and', 'with'
+    when 'they', 'and', 'with', 'nobody'
       add_error_note( "bad Role: '#{name}', #{text}" )
       return
     when 'everyone', 'everybody'
