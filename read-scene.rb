@@ -1391,9 +1391,8 @@ class Report
 
     count = 0
     @html_report << '<ul>'
-    sorted = nat_sort_list( list )
-    sorted.each do |prop|
-      text = "#{prefix} #{quoted_noescape( prop )}"
+    list.each do |scene|
+      text = "#{prefix} #{quoted_noescape( scene )}"
       ref = "timeframeC#{count}"
       count += 1
       @html_report << "#{html_li_ref_item( ref, text )}\n"

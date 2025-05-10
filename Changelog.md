@@ -1,4 +1,7 @@
 
+## 2025-05-10
+ * preserve order of scenes from index.wiki
+
 ## 2025-05-08
  * detect bad role names earlier
 

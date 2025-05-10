@@ -3,7 +3,7 @@
 DDATE!=		date +%Y-%m-%d
 QSPATH!=	grep ^qspath: wiki-config.yml | cut -d '"' -f2
 FILTER!=	grep ^sources: wiki-config.yml | cut -d '"' -f2
-SRC!=		ls *.wiki | grep -E '${FILTER}'
+SRC!=		grep ':script:' index.wiki | cut -d '|' -f1 | cut -d ':' -f6 | sed -e 's|$$|.wiki|' | grep -E '${FILTER}'
 ACTORS_HTML!=	ls actors/*.html
 
 ACTORS_HTMLS=	${ACTORS_HTML:S/.html/.html,/g:S/,$//}
