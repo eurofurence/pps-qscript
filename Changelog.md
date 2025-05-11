@@ -1,4 +1,7 @@
 
+## 2025-05-11
+ * keep track of TechProp "Curtain"
+
 ## 2025-05-10
  * preserve order of scenes from index.wiki
  * add nobody to bad roles

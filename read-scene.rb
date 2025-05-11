@@ -4370,6 +4370,7 @@ class Parser
       collect_handprop( text, nil )
       parse_stagehand( hand, text, 'stagehand', 'Stage' )
       @store.timeframe.add_actor_for( hand, kprop )
+      collect_owned_prop( prop, hand, TECHPROP_NAMES, 'tec' )
     end
   end
 
