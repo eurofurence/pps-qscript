@@ -2379,10 +2379,11 @@ f = actor free<br>
         rows.push( entry )
       end
     end
+    scenes = []
     @store.timeframe.timeframes.each_pair do |scene, hash|
       next unless hash.key?( key )
 
-      columns.push( scene )
+      scenes.push( scene )
     end
     seen = {}
     [
@@ -2406,19 +2407,30 @@ f = actor free<br>
         end
       end
     end
+    columns.concat( scenes )
     columns.push( 'People' )
-    [ [ columns ], rows ]
+    [ [ columns ], scenes, rows ]
   end
   # rubocop:enable Metrics/PerceivedComplexity
 
   # rubocop:disable Metrics/BlockLength
   def puts_people_export( title, key )
-    table, rows = columns_and_rows2( key )
+    table, scenes, rows = columns_and_rows2( key )
     rows.each do |rowinfo|
       type, action, rowhand = rowinfo
       row = [ type, action ]
-      @store.timeframe.timeframes.each_pair do |_scene, hash|
-        next unless hash.key?( key )
+      scenes.each do |scene|
+        hash = @store.timeframe.timeframes[ scene ]
+        if hash.nil?
+          warn "Scene: no hash for #{scene}\n"
+          row.push( nil )
+          next
+        end
+        unless hash.key?( key )
+          warn "Scene: empty hash for #{scene}\n"
+          row.push( nil )
+          next
+        end
 
         unless hash.key?( type )
           case type
@@ -2429,6 +2441,7 @@ f = actor free<br>
                'FrontProp', 'SecondLevelProp', 'TechProp', 'PersonalProp'
             type = 'props_hands'
           else
+            row.push( nil )
             next
           end
         end
@@ -2438,7 +2451,7 @@ f = actor free<br>
           next
         end
         unless hash[ 'Actor' ].include?( rowhand )
-          warn "Actor: #{rowhand} not found in #{_scene}\n"
+          warn "Actor: #{rowhand} not found in #{scene}\n"
           row.push( nil )
           next
         end

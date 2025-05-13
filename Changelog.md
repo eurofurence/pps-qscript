@@ -1,4 +1,7 @@
 
+## 2025-05-13
+ * fix "People Export" for empty scenes
+
 ## 2025-05-11
  * keep track of TechProp "Curtain"
 
