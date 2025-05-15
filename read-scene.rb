@@ -2638,6 +2638,7 @@ end
 #   Parser.parse_section( line )
 #   Parser.get_stagehand( kprop )
 #   Parser.parse_hand( text )
+#   Parser.parse_hands( text )
 #   Parser.parse_spot( text )
 #   Parser.add_fog_hands( text )
 #   Parser.parse_fog( text )
@@ -4248,31 +4249,35 @@ class Parser
     @scene_props_hands[ kprop ]
   end
 
-  def parse_hand( text )
+  def parse_hand( prop, kprop, hand, text )
+    if hand.casecmp( 'none' ).zero?
+      collect_handprop( text, nil )
+      @qscript.puts_key( 'stagehand', hand, text )
+      @report.puts2_key( 'Stage', hand, text )
+      add_todo( "%HND% no Stagehand for '#{prop}': #{text}" )
+      return
+    end
+
+    @store.add_item( 'Actor', hand, prop: kprop, stagehand: true )
+    add_todo( @store.check_actor( hand ) )
+    collect_handprop( text, nil )
+    parse_stagehand( hand, text, 'stagehand', 'Stage' )
+    @store.timeframe.add_actor_for( hand, kprop )
+  end
+
+  def parse_hands( text )
     props = search_handprop( text )
     props.each do |prop|
       kprop = prop.downcase
       hands = get_stagehand( kprop )
       p [ '%HND%', props, hands ] unless $debug.zero?
       hands.each do |hand|
-        if hand.casecmp( 'none' ).zero?
-          collect_handprop( text, nil )
-          @qscript.puts_key( 'stagehand', hand, text )
-          @report.puts2_key( 'Stage', hand, text )
-          add_todo( "%HND% ohne Stagehand: #{text}" )
-          next
-        end
-
-        @store.add_item( 'Actor', hand, prop: kprop, stagehand: true )
-        add_todo( @store.check_actor( hand ) )
-        collect_handprop( text, nil )
-        parse_stagehand( hand, text, 'stagehand', 'Stage' )
-        @store.timeframe.add_actor_for( hand, kprop )
+        parse_hand( prop, kprop, hand, text )
       end
     end
     return unless props.empty?
 
-    add_todo( "%HND% ohne Prop oder Stagehand: #{text}" )
+    add_todo( "%HND% without Prop or Stagehand: #{text}" )
   end
 
   def parse_spot( text )
@@ -4299,7 +4304,7 @@ class Parser
     end
     return unless props.empty?
 
-    add_todo( "%SPT% ohne Prop oder Stagehand: #{text}" )
+    add_todo( "%SPT% without Prop or Stagehand: #{text}" )
   end
 
   def add_fog_hands( text )
@@ -4370,20 +4375,9 @@ class Parser
     hands = get_stagehand( kprop )
     p [ '%HND%', prop, hands ] unless $debug.zero?
     hands.each do |hand|
-      if hand.casecmp( 'none' ).zero?
-        collect_handprop( text, nil )
-        @qscript.puts_key( 'stagehand', hand, text )
-        @report.puts2_key( 'Stage', hand, text )
-        add_todo( "%HND% ohne Stagehand: #{text}" )
-        next
-      end
+      none = parse_hand( prop, kprop, hand, text )
 
-      @store.add_item( 'Actor', hand, prop: kprop, stagehand: true )
-      add_todo( @store.check_actor( hand ) )
-      collect_handprop( text, nil )
-      parse_stagehand( hand, text, 'stagehand', 'Stage' )
-      @store.timeframe.add_actor_for( hand, kprop )
-      collect_owned_prop( prop, hand, TECHPROP_NAMES, 'tec' )
+      collect_owned_prop( prop, hand, TECHPROP_NAMES, 'tec' ) unless none
     end
   end
 
@@ -4416,7 +4410,7 @@ class Parser
       parse_curtain( line )
       return
     when /^%HND% /
-      parse_hand( line.sub( /^%HND% /, '' ) )
+      parse_hands( line.sub( /^%HND% /, '' ) )
       return
     when /^%SPT% /
       parse_spot( line.sub( /^%SPT% /, '' ) )

@@ -1,4 +1,7 @@
 
+## 2025-05-15
+ * more detail in no Stagehand warning
+
 ## 2025-05-13
  * fix "People Export" for empty scenes
 
