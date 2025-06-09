@@ -1,4 +1,7 @@
 
+## 2026-06-09
+ * extend filtering of filenames for actor scripts
+
 ## 2025-05-15
  * more detail in no Stagehand warning
 
