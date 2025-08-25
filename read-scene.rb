@@ -3193,11 +3193,16 @@ class Parser
   # rubocop:enable Metrics/PerceivedComplexity
 
   def split_dokuwiki_table( line )
-    line.split( '|' )[ 1 .. ].map( &:strip )
+    cells = line.split( '|' )[ 1 .. ]
+    return [] if cells.nil?
+
+    cells.map( &:strip )
   end
 
   def parse_table_prop( line )
     list = split_dokuwiki_table( line )
+    return if list.empty?
+
     hands = list[ 1 ].split( /, */ )
     prop = list[ 0 ].sub( /^[^>]*>/, '' ).sub( /<[^<]*$/, '' )
     found = nil
@@ -4172,7 +4177,7 @@ class Parser
   def print_unknown_line( line )
     case line
     when '^Part^Time|', /^\|(Intro|Dialogue)\|/, /^\|\*\*Scene Total\*\* \|/,
-         /^\* Mockup only/, /^Light .*:/, /^==RATS==/,
+         /^\* Mockup only/, /^Light .*:/, /^==RATS==/, /^==Audio SFX==/
          /:events:pps:script:/
       return
     end
@@ -4395,7 +4400,7 @@ class Parser
 
   def parse_script_line( line )
     case line
-    when ''
+    when '', /^{{/, /^<= \[\[/
       return
     when /Backdrop_L/
       collect_backdrop( line )
