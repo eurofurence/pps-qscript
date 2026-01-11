@@ -3573,7 +3573,7 @@ class Parser
     if @store.collection.key?( ownerkey )
       old = @store.collection[ ownerkey ][ kprop ]
       remove_owned_prop( prop, old, @scene_props_names[ kprop ] ) \
-        unless old.nil?
+        unless old.nil? or @scene_props_names[ kprop ].nil?
     end
     add_just_prop( prop, names )
   end
@@ -4378,11 +4378,22 @@ class Parser
     return unless @scene_props_hands.key?( kprop )
 
     hands = get_stagehand( kprop )
+    @store.timeframe.add( 'TechProp', kprop )
     p [ '%HND%', prop, hands ] unless $debug.zero?
     hands.each do |hand|
+      @store.add_item( 'Actor', hand, effect: kprop, stagehand: true )
       none = parse_hand( prop, kprop, hand, text )
+      @store.add_item( 'TechProp', kprop, stagehand: hand )
 
-      collect_owned_prop( prop, hand, TECHPROP_NAMES, 'tec' ) unless none
+      collect_owned_prop( prop, hand, TECHPROP_NAMES, 'tec' )
+      @store.timeframe.add_list_text(
+        'TechProp', 'Effct', kprop, [ hand, text ]
+      )
+      @store.timeframe.add_list_text(
+        'Actor', 'Effct', kprop, [ hand, text ]
+      )
+      @store.timeframe.add_actor_for( hand, kprop )
+      @store.timeframe.add_wiki_actor_for( hand, kprop )
     end
   end
 

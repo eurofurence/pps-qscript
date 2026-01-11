@@ -1,10 +1,13 @@
 
-## 2026-08-25
+## 2026-01-11
+ * safer Curtain handling
+
+## 2025-08-25
  * ignore new table "Audio SFX"
  * ignore bad table line
  * ignore more navigaion
 
-## 2026-06-09
+## 2025-06-09
  * extend filtering of filenames for actor scripts
 
 ## 2025-05-15
