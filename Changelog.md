@@ -1,4 +1,7 @@
 
+## 2026-02-08
+ * exclude embedded html tags from parsing
+
 ## 2026-01-11
  * safer Curtain handling
 

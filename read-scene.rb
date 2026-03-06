@@ -4177,8 +4177,8 @@ class Parser
   def print_unknown_line( line )
     case line
     when '^Part^Time|', /^\|(Intro|Dialogue)\|/, /^\|\*\*Scene Total\*\* \|/,
-         /^\* Mockup only/, /^Light .*:/, /^==RATS==/, /^==Audio SFX==/
-         /:events:pps:script:/
+         /^\* Mockup only/, /^Light .*:/, /^==RATS==/, /^==Audio SFX==/,
+         /:events:pps:script:/, /<\/*html>/
       return
     end
     add_error_note( "unknown line '#{line}'" )
