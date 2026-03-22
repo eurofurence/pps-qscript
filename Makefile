@@ -89,7 +89,7 @@ all.html:	${SRC} UPLOAD/all.wiki
 	./fetch-wiki.rb "${QSPATH}:all.html"
 
 .for scene in ${SINGLE_LIST}
-${scene}.html:	makesingle.sh header.wiki ${scene}.wiki
+${scene}.html:	makesingle.sh header.wiki ${scene}.wiki ${scene:S/single_//}.wiki
 	./fetch-wiki.rb "${QSPATH}:${scene}.html"
 
 ${scene}.pdf:	${scene}.html
