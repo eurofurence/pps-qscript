@@ -1,4 +1,7 @@
 
+## 2026-03-22
+ * support for single scene PDF
+
 ## 2026-02-08
  * exclude embedded html tags from parsing
 

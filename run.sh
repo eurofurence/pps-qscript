@@ -66,6 +66,10 @@ echo "upload"
 case "${1}" in
 auto)
 	./upload-wiki.rb
+	./upload-wiki.rb $( make -V SINGLE_SRC )
+	make single
+	./upload-wiki.rb $( make -V SINGLE_PDF )
+	./upload-wiki.rb single.wiki
 	if test -f hold-actors.txt
 	then
 		echo "upload actors on hold."

@@ -9,6 +9,10 @@ ACTORS_HTML!=	ls actors/*.html
 ACTORS_HTMLS=	${ACTORS_HTML:S/.html/.html,/g:S/,$//}
 ACTORS_PDF=	${ACTORS_HTML:S/html/pdf/g}
 ACTORS_LIST=	${ACTORS_HTML:S/.html//g}
+SINGLE_SRC=	${SRC:S/^/single_/}
+SINGLE_HTMLS=	${SINGLE_SRC:S/.wiki/.html/g}
+SINGLE_LIST=	${SINGLE_SRC:S/.wiki//g}
+SINGLE_PDF=	${SINGLE_SRC:S/.wiki/.pdf/g}
 
 all:	numbered-qscript.txt out.txt \
 	all.wiki plain.wiki clothes.pdf all.pdf \
@@ -72,6 +76,7 @@ actors::	${ACTORS_PDF}
 
 all.wiki:	makeall.sh header.wiki index.wiki
 	./makeall.sh > all.wiki
+	./makesingle.sh
 
 plain.wiki:	Makefile all.wiki
 	sed -e '/^@media (prefers-color-scheme/,/^}/d' all.wiki > plain.wiki
@@ -82,6 +87,19 @@ puppet_pool.json:	puppet_pool.rb puppet_pool.wiki media/smileys.txt
 
 all.html:	${SRC} UPLOAD/all.wiki
 	./fetch-wiki.rb "${QSPATH}:all.html"
+
+.for scene in ${SINGLE_LIST}
+${scene}.html:	makesingle.sh header.wiki ${scene}.wiki
+	./fetch-wiki.rb "${QSPATH}:${scene}.html"
+
+${scene}.pdf:	${scene}.html
+	./makepdf.sh ${scene}.pdf
+
+.endfor
+
+single::
+	make ${SINGLE_PDF}
+	./single.rb
 
 index.wiki:
 	./fetch-wiki.rb

@@ -26,7 +26,7 @@ break.pdf)
 	make_pdf break.html tmp.break.html break.pdf --grayscale --footer-right "edited ${ddate} [page]/[topage]" --zoom 1.35 --margin-top 15 --margin-bottom 15 --margin-left 15 --margin-right 15
 	;;
 actors/*.pdf)
-	source=`ls -t *scene*.wiki | head -1`
+	source=`ls -t $( make -V SRC ) | head -1`
 	seconds=`stat -f "%m" "${source}"`
 	echo "${seconds}"
 	ddate=`date -r "${seconds}" "+%Y-%m-%d %H:%M"`
@@ -36,11 +36,17 @@ actors/*.pdf)
 	make_pdf "${html}" "tmp.${html##*/}" "${1}" --load-media-error-handling ignore --footer-right "${actor} edited ${ddate} [page]/[topage]" --zoom 1.35 --margin-top 15 --margin-bottom 15 --margin-left 15 --margin-right 15
 	;;
 all.pdf)
-	source=`ls -t *scene*.wiki | head -1`
+	source=`ls -t $( make -V SRC ) | head -1`
 	seconds=`stat -f "%m" "${source}"`
 	echo "${seconds}"
 	ddate=`date -r "${seconds}" "+%Y-%m-%d %H:%M"`
 	make_pdf all.html tmp.all.html all.pdf --load-media-error-handling ignore --grayscale --footer-right "edited ${ddate} [page]/[topage]" --zoom 1.35 --margin-top 15 --margin-bottom 15 --margin-left 15 --margin-right 15
+	;;
+single*.pdf)
+	html="${1%.pdf}.html"
+	seconds=`stat -f "%m" "${html}"`
+	ddate=`date -r "${seconds}" "+%Y-%m-%d %H:%M"`
+	make_pdf "${html}" "tmp.${html}" "${1}" --load-media-error-handling ignore --grayscale --footer-right "edited ${ddate} [page]/[topage]" --zoom 1.35 --margin-top 15 --margin-bottom 15 --margin-left 15 --margin-right 15
 	;;
 *)
 	${0} clothes.pdf
